@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import hash_password
-from app.models import AgentAction, ChatMessage, Payee, Transaction, TuitionInvoice, User, Wallet
+from app.models import (AgentAction, ChatMessage, Notification, Payee, StandingInstruction, Transaction,
+                        TuitionInvoice, User, Wallet)
 from app.services import audit, sandbox
 
 # Fictional institutions; account numbers are sandbox values.
@@ -46,7 +47,7 @@ def _hist(db, user, *, kind, direction, amount, currency, counterparty, days, pa
                        counterparty=counterparty, counterparty_account=payee.account_ref if payee else None,
                        channel="CARD" if kind == "CARD" else "BANK_TRANSFER", provider=provider, status="COMPLETED",
                        risk_score=round(random.uniform(0.01, 0.08), 3) if direction == "OUT" else None,
-                       risk_level="LOW" if direction == "OUT" else None, tier="T1" if direction == "OUT" else "T0",
+                       risk_level="LOW" if direction == "OUT" else None, tier="T2" if direction == "OUT" else "T0",
                        initiated_by="USER", created_at=_ago(days, hour), executed_at=_ago(days, hour)))
 
 
@@ -82,6 +83,15 @@ def provision_student(db: Session, user: User, with_history: bool):
                               amount=26_000.0 if study == "CNY" else 9_500.0, currency=study,
                               due_date=(datetime.now().date() + timedelta(days=6)).isoformat()))  # local date, like reminders
 
+    period = datetime.now().strftime("%Y-%m")  # this month's payments are already in the history
+    db.add_all([
+        StandingInstruction(user_id=user.id, payee_id=mother.id, amount=1_500.0 if study == "CNY" else 200.0,
+                            currency=study, day_of_month=1, note="Monthly support for mother",
+                            last_prepared_period=period if with_history else None),
+        StandingInstruction(user_id=user.id, payee_id=landlord.id, amount=2_800.0 if study == "CNY" else 600.0,
+                            currency=study, day_of_month=5, note="Rent", last_prepared_period=period if with_history else None),
+    ])
+
     if not with_history:
         return
     random.seed(user.id)
@@ -105,6 +115,8 @@ def provision_student(db: Session, user: User, with_history: bool):
 def _wipe(db: Session, user: User):
     uid = user.id
     db.execute(delete(TuitionInvoice).where(TuitionInvoice.user_id == uid))
+    db.execute(delete(StandingInstruction).where(StandingInstruction.user_id == uid))
+    db.execute(delete(Notification).where(Notification.user_id == uid))
     db.execute(delete(AgentAction).where(AgentAction.user_id == uid))
     db.execute(delete(ChatMessage).where(ChatMessage.user_id == uid))
     db.execute(delete(Transaction).where(Transaction.user_id == uid))

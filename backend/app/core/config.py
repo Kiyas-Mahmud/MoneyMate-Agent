@@ -32,10 +32,19 @@ class Settings(BaseSettings):
 
     MODEL_BUNDLE_PATH: str = str(BACKEND_DIR / "ml" / "artifacts" / "hybrid_risk_model.joblib")
 
-    # Permission-tier limits (USD equivalent)
-    AUTO_EXECUTE_LIMIT_USD: float = 200.0
-    AUTO_EXECUTE_DAILY_LIMIT_USD: float = 500.0
-    CONFIRMATION_TTL_MINUTES: int = 15
+    # Verification: no money ever moves without the student's verification.
+    # "device": the phone signs a one-time challenge with a key unlocked by Face ID / fingerprint.
+    # "sandbox": accepts {"sandbox": true} instead of a signature (demos through the API docs only).
+    VERIFICATION_MODE: str = "device"
+    CONFIRMATION_TTL_MINUTES: int = 15          # payments the student starts
+    SCHEDULED_TTL_HOURS: int = 24               # payments prepared by the daily monitor
+
+    # Daily monitor (deadlines, standing instructions, incoming money, low balance)
+    MONITOR_ENABLED: bool = True
+    MONITOR_HOUR: int = 8                       # local server time
+    # Push notifications through the Expo push service (mobile app); off by default
+    PUSH_ENABLED: bool = False
+    EXPO_PUSH_URL: str = "https://exp.host/--/api/v2/push/send"
 
     DEMO_USER_PASSWORD: str = "Demo@2026"
 
@@ -49,6 +58,9 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if settings.ENVIRONMENT == "production" and settings.VERIFICATION_MODE != "device":
+    raise RuntimeError("VERIFICATION_MODE must be 'device' in production: payments need a phone signature.")
 
 if not settings.JWT_SECRET_KEY:
     warnings.warn("JWT_SECRET_KEY is not set; using a random key (tokens reset on restart).")

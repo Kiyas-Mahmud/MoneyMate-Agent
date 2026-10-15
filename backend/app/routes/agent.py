@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models import AgentAction, ChatMessage, User
-from app.services import payments, sandbox
+from app.services import devices, payments, sandbox
 from app.services.agent import orchestrator
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -43,12 +43,31 @@ def list_actions(status: str | None = None, limit: int = 50, user: User = Depend
     return [payments.action_view(a) for a in rows]
 
 
-@router.post("/actions/{action_id}/confirm")
-def confirm(action_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+class VerifyIn(BaseModel):
+    device_id: int | None = None
+    signature: str | None = Field(default=None, max_length=200)
+    sandbox: bool = False
+
+
+@router.get("/actions/{action_id}/challenge")
+def challenge(action_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """The one-time text the phone signs after Face ID / fingerprint."""
     try:
-        result = payments.confirm_action(db, user, action_id)
+        return payments.challenge(db, user, action_id)
+    except payments.PaymentError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/actions/{action_id}/verify")
+def verify(action_id: int, body: VerifyIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        result = payments.verify_action(db, user, action_id, device_id=body.device_id, signature=body.signature,
+                                        sandbox_ok=body.sandbox)
         db.commit()
         return result
+    except devices.VerificationError as e:
+        db.rollback()
+        raise HTTPException(403, str(e))
     except (payments.PaymentError, sandbox.SandboxError) as e:
         db.rollback()
         raise HTTPException(400, str(e))

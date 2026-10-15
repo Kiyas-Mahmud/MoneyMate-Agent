@@ -1,25 +1,26 @@
 """
 Permission tiers: what the agent may do on its own.
 
-T0  READ     look-ups, quotes, checks                      -> runs immediately
-T1  AUTO     small payment to a known payee, low risk       -> agent executes, student is notified
-T2  CONFIRM  new payee, medium risk, large amount, tuition  -> waits for the student to confirm in the app
-T3  BLOCK    high risk, impersonation, mule pattern, ...    -> refused, with reasons
+T0  READ    look-ups, quotes, checks, planning           -> runs immediately
+T2  VERIFY  every movement of money (payment, transfer,  -> the agent prepares it and the student must
+            conversion, scheduled payment)                  verify on their phone (Face ID / fingerprint)
+T3  BLOCK   high risk, impersonation, mule pattern, ...  -> refused, with reasons
 
-The LLM never decides the tier. It only proposes an action; this module decides, using the
-risk engine and hard rules. Confirmation is only possible through an authenticated UI call,
-never through chat text, so instructions hidden in an invoice or message cannot approve a payment.
+There is deliberately no auto-execute tier: the agent never moves money without the student's
+verification. The LLM never decides the tier. It only proposes an action; this module decides, using
+the risk engine and hard rules. Verification is a signed challenge from the student's registered device
+(see devices.py), never chat text, so instructions hidden in an invoice or message cannot approve a payment.
 """
 
 from dataclasses import dataclass, field
 
-from app.core.config import settings
+VERIFY_RULE = "Every payment needs your verification. The agent can't move money on its own."
 
 
 @dataclass
 class Decision:
     tier: str
-    decision: str  # READ | AUTO | CONFIRM | BLOCK
+    decision: str  # READ | VERIFY | BLOCK
     rules: list[str] = field(default_factory=list)
 
     def as_dict(self):
@@ -29,10 +30,8 @@ class Decision:
 READ_ONLY = Decision("T0", "READ", ["Read-only action"])
 
 
-def decide_payment(*, kind: str, risk: dict, features: dict, verification_status: str | None,
-                   amount_usd: float, auto_used_today_usd: float) -> Decision:
-    block, confirm = [], []
-
+def decide_payment(*, kind: str, risk: dict, features: dict, verification_status: str | None) -> Decision:
+    block = []
     if verification_status == "IMPERSONATION":
         block.append("Payee impersonates a registered institution (account does not match the official one)")
     if kind == "TUITION" and verification_status != "VERIFIED":
@@ -47,17 +46,15 @@ def decide_payment(*, kind: str, risk: dict, features: dict, verification_status
     if block:
         return Decision("T3", "BLOCK", block)
 
+    # Not blocked: prepare it and ask the student to verify. Extra notes explain what to look at.
+    notes = [VERIFY_RULE]
     if risk["level"] == "MEDIUM":
-        confirm.append(f"Hybrid model risk is MEDIUM ({risk['score']:.0%})")
-    if kind == "TUITION":
-        confirm.append("Tuition payments always need your confirmation")
+        notes.append(f"Check carefully: hybrid model risk is MEDIUM ({risk['score']:.0%})")
     if features.get("payee_new"):
-        confirm.append("First payment to this payee")
-    if amount_usd > settings.AUTO_EXECUTE_LIMIT_USD:
-        confirm.append(f"Above the ${settings.AUTO_EXECUTE_LIMIT_USD:,.0f} auto-execute limit")
-    elif auto_used_today_usd + amount_usd > settings.AUTO_EXECUTE_DAILY_LIMIT_USD:
-        confirm.append(f"Would exceed the ${settings.AUTO_EXECUTE_DAILY_LIMIT_USD:,.0f} daily auto-execute limit")
-    if confirm:
-        return Decision("T2", "CONFIRM", confirm)
+        notes.append("First payment to this payee")
+    return Decision("T2", "VERIFY", notes)
 
-    return Decision("T1", "AUTO", ["Known payee, low risk, within auto-execute limits"])
+
+def decide_conversion() -> Decision:
+    """Moving money between the student's own wallets: no third party, but still verified."""
+    return Decision("T2", "VERIFY", [VERIFY_RULE, "Conversion between your own wallets"])

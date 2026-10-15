@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Payee, TuitionInvoice, User
 from app.services import audit, sandbox
+from app.services.notify import notify
 
 STAGES = [(-10_000, -1, "OVERDUE"), (0, 3, "DUE_IN_3_DAYS"), (4, 7, "DUE_IN_7_DAYS"), (8, 14, "DUE_IN_14_DAYS")]
 STAGE_RANK = {None: 0, "DUE_IN_14_DAYS": 1, "DUE_IN_7_DAYS": 2, "DUE_IN_3_DAYS": 3, "OVERDUE": 4}
@@ -62,6 +63,11 @@ def tuition_reminders(db: Session, user: User, today: date | None = None, log_ne
             audit.record(db, user_id=user.id, actor="AGENT", event="TUITION_REMINDER", tier="T0",
                          details={"invoice_id": inv.id, "stage": stage, "days_left": days_left,
                                   "shortfall": round(shortfall, 2), "currency": inv.currency})
+            notify(db, user.id, kind="TUITION_REMINDER",
+                   title=("Tuition overdue" if stage == "OVERDUE" else
+                          f"Tuition due in {days_left} day{'s' if days_left != 1 else ''}"),
+                   body=msg, data={"invoice_id": inv.id, "stage": stage, "shortfall": round(shortfall, 2),
+                                   "convert_suggestion": convert})
 
         out.append({
             "invoice_id": inv.id, "semester": inv.semester, "university": uni.name if uni else None,

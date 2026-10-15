@@ -1,22 +1,27 @@
 """
 Money-moving operations. Every payment goes through the same pipeline:
 
-  build behavioural features -> hybrid risk score -> permission tier -> execute / wait / block
-  -> transaction + agent action + hash-chained audit entry
+  build behavioural features -> hybrid risk score -> policy (verify or block)
+  -> prepared transaction + agent action + "verify to complete" notification + audit entry
+  -> the student verifies on their phone -> money moves -> receipt
 
-Used by the agent tools and by the REST API, so the UI and the agent follow identical rules.
+The agent never moves money on its own: there is no auto-execute path. Used by the agent tools, the
+daily monitor (standing instructions) and the REST API, so all of them follow identical rules.
 """
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models import AgentAction, Payee, Transaction, TuitionInvoice, User
-from app.services import audit, receipts, sandbox, verification
-from app.services.policy import decide_payment
+from app.services import audit, devices, receipts, reminders, sandbox, verification
+from app.services.notify import notify
+from app.services.policy import decide_conversion, decide_payment
 from app.services.risk import engine
+
+MULE_ALERT_MIN_USD = 300.0
 
 
 class PaymentError(ValueError):
@@ -27,10 +32,8 @@ def _now():
     return datetime.now(timezone.utc)
 
 
-def _auto_used_today(db: Session, user_id: int) -> float:
-    return db.scalar(select(func.coalesce(func.sum(Transaction.amount_usd), 0.0)).where(
-        Transaction.user_id == user_id, Transaction.tier == "T1", Transaction.status == "COMPLETED",
-        Transaction.created_at >= _now() - timedelta(hours=24))) or 0.0
+def _aware(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def tx_view(tx: Transaction) -> dict:
@@ -50,12 +53,33 @@ def tx_view(tx: Transaction) -> dict:
 def action_view(a: AgentAction) -> dict:
     return {"id": a.id, "tool": a.tool, "tier": a.tier, "status": a.status, "summary": a.summary,
             "transaction_id": a.transaction_id, "result": a.result,
+            "needs_verification": a.status == "AWAITING_VERIFICATION",
             "expires_at": a.expires_at.isoformat() if a.expires_at else None,
             "created_at": a.created_at.isoformat() if a.created_at else None}
 
 
+def _ttl(initiated_by: str) -> timedelta:
+    if initiated_by == "SCHEDULE":
+        return timedelta(hours=settings.SCHEDULED_TTL_HOURS)
+    return timedelta(minutes=settings.CONFIRMATION_TTL_MINUTES)
+
+
+def _await_verification(db: Session, user: User, action: AgentAction, txs: list[Transaction], initiated_by: str):
+    """Park the payment and ask the student to verify it on their phone."""
+    for t in txs:
+        t.status = "AWAITING_VERIFICATION"
+    action.status = "AWAITING_VERIFICATION"
+    action.verification_nonce = devices.new_nonce()
+    action.expires_at = _now() + _ttl(initiated_by)
+    db.flush()
+    prefix = "Scheduled payment ready. " if initiated_by == "SCHEDULE" else ""
+    notify(db, user.id, kind="VERIFY_PAYMENT", title="Verify to complete your payment",
+           body=f"{prefix}{action.summary}. Please complete verification to complete the payment.",
+           action_id=action.id, data={"expires_at": action.expires_at.isoformat()})
+
+
 def _finalize(db: Session, user: User, *, session_id: str, tool: str, args: dict, tx: Transaction,
-              risk: dict, decision, summary: str, extra: dict) -> dict:
+              risk: dict, decision, summary: str, extra: dict, extra_txs: list[Transaction] | None = None) -> dict:
     tx.risk_score, tx.risk_level = risk["score"], risk["level"]
     tx.risk_reasons = [r["text"] for r in risk["reasons"]]
     tx.model_scores, tx.tier = risk["model_scores"], decision.tier
@@ -63,42 +87,63 @@ def _finalize(db: Session, user: User, *, session_id: str, tool: str, args: dict
     db.flush()
 
     action = AgentAction(user_id=user.id, session_id=session_id, tool=tool, args=args, tier=decision.tier,
-                         summary=summary, transaction_id=tx.id)
+                         summary=summary, transaction_id=tx.id, status="PENDING")
+    db.add(action)
+    db.flush()
     if decision.decision == "BLOCK":
         tx.status = action.status = "BLOCKED"
-    elif decision.decision == "CONFIRM":
-        tx.status = action.status = "AWAITING_CONFIRMATION"
-        action.expires_at = _now() + timedelta(minutes=settings.CONFIRMATION_TTL_MINUTES)
+        for t in extra_txs or []:
+            t.status = "CANCELLED"
+        notify(db, user.id, kind="PAYMENT_BLOCKED", title="Payment blocked",
+               body=f"{summary}. {decision.rules[0]}.", action_id=action.id)
     else:
-        sandbox.settle(db, tx)
-        action.status = "AUTO_EXECUTED"
-        action.decided_at = _now()
+        _await_verification(db, user, action, [tx, *(extra_txs or [])], tx.initiated_by)
 
     result = {"status": action.status, "summary": summary, "policy": decision.as_dict(),
               "risk": {k: risk[k] for k in ("score", "level", "reasons", "protective_factors", "model_scores")},
-              "transaction": tx_view(tx), **extra}
-    if tx.status == "COMPLETED":
-        result["receipt"] = receipts.build(db, tx)
-    action.result = result
-    db.add(action)
-    db.flush()
-    result["action_id"] = action.id
+              "transaction": tx_view(tx), "action_id": action.id,
+              "expires_at": action.expires_at.isoformat() if action.expires_at else None, **extra}
     action.result = dict(result)
 
-    audit.record(db, user_id=user.id, actor="AGENT" if tx.initiated_by == "AGENT" else "STUDENT",
+    audit.record(db, user_id=user.id, actor="AGENT" if tx.initiated_by in ("AGENT", "SCHEDULE") else "STUDENT",
                  event=f"PAYMENT_{action.status}", tier=decision.tier,
                  details={"action_id": action.id, "transaction_id": tx.id, "kind": tx.kind,
                           "amount": tx.amount, "currency": tx.currency, "counterparty": tx.counterparty,
-                          "risk_score": risk["score"], "risk_level": risk["level"], "rules": decision.rules})
+                          "risk_score": risk["score"], "risk_level": risk["level"], "rules": decision.rules,
+                          "initiated_by": tx.initiated_by})
     return result
 
 
-def _check_funds(db: Session, user: User, currency: str, amount: float):
+def _balance(db: Session, user: User, currency: str) -> float:
     w = sandbox.get_wallet(db, user.id, currency)
-    if w is None or w.balance + 1e-9 < amount:
-        have = w.balance if w else 0.0
+    return w.balance if w else 0.0
+
+
+def _check_funds(db: Session, user: User, currency: str, amount: float):
+    have = _balance(db, user, currency)
+    if have + 1e-9 < amount:
         raise PaymentError(f"Insufficient {currency} balance: need {amount:,.2f}, have {have:,.2f}. "
                            f"Convert money into {currency} first.")
+
+
+def _plan_conversion(db: Session, user: User, currency: str, shortfall: float, initiated_by: str) -> tuple[dict, Transaction]:
+    """Prepare (not execute) the conversion that covers a shortfall; it runs only when the student verifies."""
+    src = user.home_currency if user.home_currency != currency else "USD"
+    cost = round(reminders._cost_to_cover(shortfall, src, currency), 2)
+    if _balance(db, user, src) + 1e-9 < cost:
+        raise PaymentError(f"Not enough money: you need {shortfall:,.2f} {currency} more and your {src} wallet "
+                           f"cannot cover the {cost:,.2f} {src} conversion.")
+    q = sandbox.quote(cost, src, currency, "remitlite")
+    fx = Transaction(user_id=user.id, kind="FX", direction="OUT", amount=cost, currency=src,
+                     amount_usd=sandbox.to_usd(cost, src), counterparty=f"Own {currency} wallet", channel="INTERNAL",
+                     provider=q["provider"], fee=q["fee"], fx_rate=q["rate"],
+                     memo=f"Converted to {shortfall:,.2f} {currency}", initiated_by=initiated_by,
+                     status="PENDING", tier="T2")
+    db.add(fx)
+    db.flush()
+    step = {"transaction_id": fx.id, "amount": cost, "from": src, "to": currency, "receive": round(shortfall, 2),
+            "rate": q["rate"], "fee": q["fee"]}
+    return step, fx
 
 
 def pay_tuition(db: Session, user: User, *, session_id: str, initiated_by: str, amount: float | None = None,
@@ -137,10 +182,14 @@ def pay_tuition(db: Session, user: User, *, session_id: str, initiated_by: str, 
                                      counterparty_account=account_ref, pressure_flags=pressure,
                                      name_account_mismatch=ver["status"] == "IMPERSONATION")
     risk = engine.score(features)
-    decision = decide_payment(kind="TUITION", risk=risk, features=features, verification_status=ver["status"],
-                              amount_usd=amount_usd, auto_used_today_usd=_auto_used_today(db, user.id))
+    decision = decide_payment(kind="TUITION", risk=risk, features=features, verification_status=ver["status"])
+
+    plan, extra_txs = None, []
     if decision.decision != "BLOCK":
-        _check_funds(db, user, currency, amount)
+        shortfall = amount - _balance(db, user, currency)
+        if shortfall > 1e-9:  # not enough in this currency: plan a conversion, verified together with the payment
+            plan, fx = _plan_conversion(db, user, currency, shortfall, initiated_by)
+            extra_txs = [fx]
 
     name = payee.name if payee else (payee_name or "Unknown payee")
     tx = Transaction(user_id=user.id, kind="TUITION", direction="OUT", amount=amount, currency=currency,
@@ -148,26 +197,21 @@ def pay_tuition(db: Session, user: User, *, session_id: str, initiated_by: str, 
                      counterparty_account=payee.account_ref if payee else account_ref, channel="BANK_TRANSFER",
                      memo=f"Tuition{(' - ' + semester) if semester else ''}", features=features,
                      initiated_by=initiated_by, status="PENDING")
-    summary = f"Pay {amount:,.2f} {currency} tuition to {name}"
+    if plan:
+        summary = (f"Convert {plan['amount']:,.2f} {plan['from']} to {plan['receive']:,.2f} {currency}, "
+                   f"then pay {amount:,.2f} {currency} tuition to {name}")
+    else:
+        summary = f"Pay {amount:,.2f} {currency} tuition to {name}"
     args = {"amount": amount, "currency": currency, "payee_name": payee_name, "account_ref": account_ref,
             "semester": semester, "from_request_text": bool(request_text),
-            "invoice_id": invoice.id if invoice else None}
-    result = _finalize(db, user, session_id=session_id, tool="pay_tuition", args=args, tx=tx, risk=risk,
-                       decision=decision, summary=summary,
-                       extra={"payee_verification": ver, "request_analysis": analysis,
-                              "invoice": {"semester": invoice.semester, "due_date": invoice.due_date}
-                              if invoice else None})
-    if invoice and tx.status == "COMPLETED":
-        invoice.status, invoice.transaction_id = "PAID", tx.id
-    return result
-
-
-def _settle_invoice(db: Session, a: AgentAction, tx: Transaction):
-    inv_id = (a.args or {}).get("invoice_id")
-    if inv_id:
-        inv = db.get(TuitionInvoice, inv_id)
-        if inv and inv.status == "OPEN":
-            inv.status, inv.transaction_id = "PAID", tx.id
+            "invoice_id": invoice.id if invoice else None, "convert": plan}
+    steps = ([{"step": "convert", **{k: plan[k] for k in ("amount", "from", "receive", "to", "fee")}}] if plan else [])
+    steps.append({"step": "pay", "amount": amount, "currency": currency, "to": name})
+    return _finalize(db, user, session_id=session_id, tool="pay_tuition", args=args, tx=tx, risk=risk,
+                     decision=decision, summary=summary, extra_txs=extra_txs,
+                     extra={"payee_verification": ver, "request_analysis": analysis, "plan": steps,
+                            "invoice": {"semester": invoice.semester, "due_date": invoice.due_date}
+                            if invoice else None})
 
 
 def send_remittance(db: Session, user: User, *, session_id: str, initiated_by: str, recipient: str,
@@ -196,8 +240,7 @@ def send_remittance(db: Session, user: User, *, session_id: str, initiated_by: s
     features = engine.build_features(db, user, kind="REMITTANCE_OUT", amount_usd=amount_usd, payee=payee,
                                      channel=channel, pressure_flags=pressure)
     risk = engine.score(features)
-    decision = decide_payment(kind="REMITTANCE_OUT", risk=risk, features=features, verification_status=None,
-                              amount_usd=amount_usd, auto_used_today_usd=_auto_used_today(db, user.id))
+    decision = decide_payment(kind="REMITTANCE_OUT", risk=risk, features=features, verification_status=None)
     if decision.decision != "BLOCK":
         _check_funds(db, user, src, amount)
 
@@ -218,31 +261,51 @@ def send_remittance(db: Session, user: User, *, session_id: str, initiated_by: s
 
 def convert_currency(db: Session, user: User, *, session_id: str, initiated_by: str, amount: float,
                      from_currency: str, to_currency: str) -> dict:
-    """Move money between the student's own wallets (no third party, so no fraud score)."""
+    """Prepare a conversion between the student's own wallets; it runs after verification."""
     src, dst = sandbox.check_currency(from_currency), sandbox.check_currency(to_currency)
-    q = sandbox.quote(amount, src, dst, "remitlite")
+    if src == dst:
+        raise PaymentError("Choose two different currencies")
     _check_funds(db, user, src, amount)
-    sandbox.debit(db, user.id, src, amount)
-    sandbox.credit(db, user.id, dst, q["receive_amount"])
+    q = sandbox.quote(amount, src, dst, "remitlite")
     tx = Transaction(user_id=user.id, kind="FX", direction="OUT", amount=amount, currency=src,
                      amount_usd=sandbox.to_usd(amount, src), counterparty=f"Own {dst} wallet", channel="INTERNAL",
                      provider=q["provider"], fee=q["fee"], fx_rate=q["rate"],
                      memo=f"Converted to {q['receive_amount']:,.2f} {dst}", initiated_by=initiated_by,
-                     status="COMPLETED", tier="T1", executed_at=_now())
+                     status="PENDING", tier="T2")
     db.add(tx)
     db.flush()
+    decision = decide_conversion()
+    summary = f"Convert {amount:,.2f} {src} to {q['receive_amount']:,.2f} {dst}"
     action = AgentAction(user_id=user.id, session_id=session_id, tool="convert_currency",
-                         args={"amount": amount, "from": src, "to": dst}, tier="T1", status="AUTO_EXECUTED",
-                         summary=f"Convert {amount:,.2f} {src} to {q['receive_amount']:,.2f} {dst}",
-                         transaction_id=tx.id, decided_at=_now())
+                         args={"fx": {"amount": amount, "from": src, "to": dst, "receive": q["receive_amount"]}},
+                         tier="T2", summary=summary, transaction_id=tx.id, status="PENDING")
     db.add(action)
     db.flush()
-    action.result = {"status": "AUTO_EXECUTED", "summary": action.summary, "quote": q, "action_id": action.id,
-                     "transaction": tx_view(tx), "receipt": receipts.build(db, tx)}
+    _await_verification(db, user, action, [tx], initiated_by)
+    action.result = {"status": action.status, "summary": summary, "policy": decision.as_dict(), "quote": q,
+                     "action_id": action.id, "transaction": tx_view(tx), "expires_at": action.expires_at.isoformat()}
     audit.record(db, user_id=user.id, actor="AGENT" if initiated_by == "AGENT" else "STUDENT",
-                 event="FX_CONVERTED", tier="T1", details={"action_id": action.id, "amount": amount, "from": src,
-                                                          "to": dst, "received": q["receive_amount"]})
-    return action.result
+                 event="FX_AWAITING_VERIFICATION", tier="T2",
+                 details={"action_id": action.id, "amount": amount, "from": src, "to": dst,
+                          "receive": q["receive_amount"]})
+    return dict(action.result)
+
+
+def maybe_mule_alert(db: Session, user: User, tx: Transaction):
+    """Warn the moment a large amount arrives from a sender the student has never received money from."""
+    if tx.direction != "IN" or tx.amount_usd < MULE_ALERT_MIN_USD:
+        return None
+    from app.services.notify import already_sent
+
+    earlier = db.scalar(select(Transaction.id).where(
+        Transaction.user_id == user.id, Transaction.direction == "IN", Transaction.status == "COMPLETED",
+        Transaction.counterparty == tx.counterparty, Transaction.id != tx.id).limit(1))
+    if earlier or already_sent(db, user.id, "MULE_ALERT", f"tx:{tx.id}"):
+        return None
+    return notify(db, user.id, kind="MULE_ALERT", title="Money from someone new",
+                  body=(f"You received {tx.amount:,.0f} {tx.currency} from {tx.counterparty}. If anyone asks you to "
+                        f"send it on, it's a money-mule scam. Don't forward it; we can help you return it."),
+                  data={"key": f"tx:{tx.id}", "transaction_id": tx.id})
 
 
 def receive_transfer(db: Session, user: User, *, sender: str, amount: float, currency: str, note: str = "") -> dict:
@@ -256,43 +319,95 @@ def receive_transfer(db: Session, user: User, *, sender: str, amount: float, cur
     sandbox.settle(db, tx)
     audit.record(db, user_id=user.id, actor="SYSTEM", event="TRANSFER_RECEIVED", tier="T0",
                  details={"transaction_id": tx.id, "sender": sender, "amount": amount, "currency": currency})
+    maybe_mule_alert(db, user, tx)
     return tx_view(tx)
 
 
-def confirm_action(db: Session, user: User, action_id: int) -> dict:
+def _settle_fx(tx: Transaction, db: Session, step: dict):
+    sandbox.debit(db, tx.user_id, step["from"], step["amount"])
+    sandbox.credit(db, tx.user_id, step["to"], step["receive"])
+    tx.status, tx.executed_at = "COMPLETED", _now()
+
+
+def _get_open_action(db: Session, user: User, action_id: int) -> AgentAction:
     a = db.get(AgentAction, action_id)
     if a is None or a.user_id != user.id:
-        raise PaymentError("Action not found")
-    if a.status != "AWAITING_CONFIRMATION":
-        raise PaymentError(f"Action is {a.status}, it cannot be confirmed")
+        raise PaymentError("Payment not found")
+    if a.status != "AWAITING_VERIFICATION":
+        raise PaymentError(f"This payment is {a.status.lower().replace('_', ' ')} and cannot be verified")
+    if _aware(a.expires_at) < _now():
+        _expire(db, a)
+        raise PaymentError("This verification request expired. Ask the agent to prepare it again.")
+    return a
+
+
+def _related_txs(db: Session, a: AgentAction) -> list[Transaction]:
+    txs = [db.get(Transaction, a.transaction_id)]
+    conv = (a.args or {}).get("convert")
+    if conv:
+        txs.insert(0, db.get(Transaction, conv["transaction_id"]))
+    return txs
+
+
+def _expire(db: Session, a: AgentAction):
+    a.status, a.verification_nonce = "EXPIRED", None
+    for t in _related_txs(db, a):
+        t.status = "EXPIRED"
+    audit.record(db, user_id=a.user_id, actor="SYSTEM", event="PAYMENT_EXPIRED", tier=a.tier,
+                 details={"action_id": a.id})
+    db.commit()
+
+
+def challenge(db: Session, user: User, action_id: int) -> dict:
+    a = _get_open_action(db, user, action_id)
+    return {"action_id": a.id, "challenge": devices.challenge_text(a), "summary": a.summary,
+            "expires_at": a.expires_at.isoformat(), "mode": settings.VERIFICATION_MODE}
+
+
+def verify_action(db: Session, user: User, action_id: int, *, device_id: int | None = None,
+                  signature: str | None = None, sandbox_ok: bool = False) -> dict:
+    a = _get_open_action(db, user, action_id)
+    if settings.VERIFICATION_MODE == "sandbox" and sandbox_ok and settings.ENVIRONMENT != "production":
+        method = "sandbox"
+    else:
+        if device_id is None or not signature:
+            raise devices.VerificationError("Verify on your registered phone: a device signature is required")
+        devices.check_signature(db, user, a, device_id, signature)
+        method = f"device:{device_id}"
+
+    args = a.args or {}
+    conv = args.get("convert")
+    if conv:
+        _settle_fx(db.get(Transaction, conv["transaction_id"]), db, conv)
     tx = db.get(Transaction, a.transaction_id)
-    expires = a.expires_at if a.expires_at.tzinfo else a.expires_at.replace(tzinfo=timezone.utc)
-    if expires < _now():
-        a.status, tx.status = "EXPIRED", "EXPIRED"
-        audit.record(db, user_id=user.id, actor="SYSTEM", event="PAYMENT_EXPIRED", tier=a.tier,
-                     details={"action_id": a.id, "transaction_id": tx.id})
-        db.commit()
-        raise PaymentError("This confirmation expired. Ask the agent again.")
-    sandbox.settle(db, tx)  # re-checks the balance at execution time
-    _settle_invoice(db, a, tx)
-    a.status, a.decided_at = "CONFIRMED", _now()
-    a.result = {**(a.result or {}), "status": "CONFIRMED", "transaction": tx_view(tx),
-                "receipt": receipts.build(db, tx)}
-    audit.record(db, user_id=user.id, actor="STUDENT", event="PAYMENT_CONFIRMED", tier=a.tier,
+    if tx.kind == "FX" and args.get("fx"):
+        _settle_fx(tx, db, args["fx"])
+    else:
+        sandbox.settle(db, tx)  # re-checks the balance at execution time
+    inv_id = args.get("invoice_id")
+    if inv_id:
+        inv = db.get(TuitionInvoice, inv_id)
+        if inv and inv.status == "OPEN":
+            inv.status, inv.transaction_id = "PAID", tx.id
+
+    a.status, a.decided_at, a.verification_nonce = "VERIFIED", _now(), None
+    receipt = receipts.build(db, tx)
+    a.result = {**(a.result or {}), "status": "VERIFIED", "transaction": tx_view(tx), "receipt": receipt}
+    audit.record(db, user_id=user.id, actor="STUDENT", event="PAYMENT_VERIFIED", tier=a.tier,
                  details={"action_id": a.id, "transaction_id": tx.id, "amount": tx.amount, "currency": tx.currency,
-                          "counterparty": tx.counterparty})
+                          "counterparty": tx.counterparty, "method": method})
+    notify(db, user.id, kind="PAYMENT_DONE", title="Payment complete",
+           body=f"{a.summary}. Receipt {receipt['reference']}.", action_id=a.id,
+           data={"receipt": receipt["reference"], "transaction_id": tx.id})
     return action_view(a)
 
 
 def reject_action(db: Session, user: User, action_id: int) -> dict:
-    a = db.get(AgentAction, action_id)
-    if a is None or a.user_id != user.id:
-        raise PaymentError("Action not found")
-    if a.status != "AWAITING_CONFIRMATION":
-        raise PaymentError(f"Action is {a.status}, it cannot be rejected")
-    tx = db.get(Transaction, a.transaction_id)
-    a.status, tx.status, a.decided_at = "REJECTED", "REJECTED", _now()
-    a.result = {**(a.result or {}), "status": "REJECTED", "transaction": tx_view(tx)}
+    a = _get_open_action(db, user, action_id)
+    a.status, a.decided_at, a.verification_nonce = "REJECTED", _now(), None
+    for t in _related_txs(db, a):
+        t.status = "REJECTED"
+    a.result = {**(a.result or {}), "status": "REJECTED"}
     audit.record(db, user_id=user.id, actor="STUDENT", event="PAYMENT_REJECTED", tier=a.tier,
-                 details={"action_id": a.id, "transaction_id": tx.id})
+                 details={"action_id": a.id})
     return action_view(a)

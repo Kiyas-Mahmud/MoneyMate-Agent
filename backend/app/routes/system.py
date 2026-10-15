@@ -40,9 +40,10 @@ def model_card():
     b = load_bundle()
     return {"version": b["version"], "base_models": b["base_model_names"], "meta_learner": "logistic_regression",
             "features": FEATURE_NAMES, "thresholds": b["thresholds"], "metrics": b["metrics"],
-            "policy_limits": {"auto_execute_usd": settings.AUTO_EXECUTE_LIMIT_USD,
-                              "auto_execute_daily_usd": settings.AUTO_EXECUTE_DAILY_LIMIT_USD,
-                              "confirmation_ttl_minutes": settings.CONFIRMATION_TTL_MINUTES}}
+            "policy": {"auto_execute": "never: every payment needs the student's verification",
+                       "verification": settings.VERIFICATION_MODE,
+                       "verification_ttl_minutes": settings.CONFIRMATION_TTL_MINUTES,
+                       "scheduled_verification_ttl_hours": settings.SCHEDULED_TTL_HOURS}}
 
 
 @router.post("/sandbox/incoming")
