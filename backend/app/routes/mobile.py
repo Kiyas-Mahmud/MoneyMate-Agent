@@ -12,15 +12,20 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models import Device, Notification, StandingInstruction, User
 from app.services import audit, devices, monitor, sandbox, standing
-from app.services.notify import view as notification_view
+from app.services.notify import notify, view as notification_view
 
 router = APIRouter(tags=["mobile"])
 
 
 class DeviceIn(BaseModel):
     name: str = Field(min_length=1, max_length=80)
-    public_key: str = Field(min_length=40, max_length=120)
-    push_token: str | None = Field(default=None, max_length=200)
+    key_type: str = "p256"
+    public_key: str = Field(min_length=40, max_length=200)
+    push_token: str | None = Field(default=None, max_length=300)
+
+
+class PushTokenIn(BaseModel):
+    push_token: str = Field(min_length=10, max_length=300)
 
 
 class StandingIn(BaseModel):
@@ -34,18 +39,33 @@ class StandingIn(BaseModel):
 @router.post("/devices", status_code=201)
 def register_device(body: DeviceIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
-        d = devices.register(db, user, body.name, body.public_key, body.push_token)
+        d = devices.register(db, user, body.name, body.public_key, body.push_token, body.key_type)
     except devices.VerificationError as e:
         raise HTTPException(400, str(e))
-    audit.record(db, user_id=user.id, actor="STUDENT", event="DEVICE_REGISTERED", details={"device_id": d.id, "name": d.name})
+    audit.record(db, user_id=user.id, actor="STUDENT", event="DEVICE_REGISTERED",
+                 details={"device_id": d.id, "name": d.name, "key_type": d.key_type})
+    notify(db, user.id, kind="DEVICE_ADDED", title="New phone added",
+           body=f"{d.name} can now verify your payments. If this wasn't you, contact support right away.")
     db.commit()
-    return {"id": d.id, "name": d.name}
+    return {"id": d.id, "name": d.name, "key_type": d.key_type}
+
+
+@router.post("/devices/{device_id}/push-token")
+def update_push_token(device_id: int, body: PushTokenIn, user: User = Depends(get_current_user),
+                      db: Session = Depends(get_db)):
+    """FCM rotates tokens; the app calls this from onTokenRefresh."""
+    d = db.get(Device, device_id)
+    if d is None or d.user_id != user.id:
+        raise HTTPException(404, "Device not found")
+    d.push_token = body.push_token
+    db.commit()
+    return {"id": d.id, "push": True}
 
 
 @router.get("/devices")
 def list_devices(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = db.scalars(select(Device).where(Device.user_id == user.id)).all()
-    return [{"id": d.id, "name": d.name, "push": bool(d.push_token),
+    return [{"id": d.id, "name": d.name, "key_type": d.key_type, "push": bool(d.push_token),
              "last_used_at": d.last_used_at.isoformat() if d.last_used_at else None} for d in rows]
 
 

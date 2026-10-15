@@ -6,13 +6,14 @@ cross-border students (FinTechathon 2026, Topic C).
 
 > **The verification rule: the agent never moves money on its own.** Every payment, transfer, currency
 > conversion and scheduled payment is prepared by the agent and completed only after the student verifies
-> it on their registered phone (Face ID / fingerprint signs a one-time challenge). There is no
+> it on their registered Android phone (fingerprint / face unlock signs a one-time challenge). There is no
 > auto-payment tier, whatever the amount or payee. Risky payments are not even offered for verification:
 > they are blocked with reasons. When a payment is prepared, the student gets the notification
 > *"Verify to complete your payment … Please complete verification to complete the payment."*
 
 All features are available through the REST API (`/docs` on the backend) and through the agent
-(`POST /api/agent/chat`).
+(`POST /api/agent/chat`). The client is an Android app; how it holds the payment key, receives push
+notifications and calls the API is described in [ANDROID_INTEGRATION.md](ANDROID_INTEGRATION.md).
 
 ---
 
@@ -145,15 +146,20 @@ routine for each student, without being asked:
 
 Every finding becomes a notification. Notification types: `VERIFY_PAYMENT` (a prepared payment waits for
 verification), `PAYMENT_DONE` (with the receipt reference), `PAYMENT_BLOCKED`, `TUITION_REMINDER`,
-`MULE_ALERT` and `LOW_BALANCE`. Optional push to the phone through the Expo push service (off by default,
-best effort; the in-app list is always the source of truth). Each monitor run is written to the audit log.
+`MULE_ALERT`, `LOW_BALANCE` and `DEVICE_ADDED` ("New phone added … If this wasn't you, contact support right
+away", sent whenever a phone is registered). Optional push to every registered Android phone through
+Firebase Cloud Messaging (off by default, best effort; the in-app list is always the source of truth).
+Payment requests, blocked payments and mule alerts use the high-priority `payments` channel so the
+"verify" prompt shows as a heads-up notification; everything else uses `updates`. Each monitor run is
+written to the audit log.
 
 **Real problem.** The moments that matter (a deadline, a payment due, a stranger's transfer) happen when
 the student is not looking at a finance app.
 
 **API.** `GET /api/notifications` (`?unread=true`), `POST /api/notifications/{id}/read`,
 `POST /api/notifications/read-all`, `POST /api/monitor/run` (runs it now; `?day=YYYY-MM-DD` simulates a date
-in the sandbox) · phone registration `POST /api/devices`, `GET /api/devices`
+in the sandbox) · phone registration `POST /api/devices`, `GET /api/devices`, FCM token update
+`POST /api/devices/{id}/push-token`
 
 ---
 
@@ -163,7 +169,7 @@ in the sandbox) · phone registration `POST /api/devices`, `GET /api/devices`
 |---|---|
 | **Hybrid ML risk check** | Each payment is scored by 6 models (Logistic Regression, Random Forest, XGBoost, Gradient Boosting, neural network, autoencoder) combined by a meta-learner, with plain-language reasons |
 | **Permission tiers** | T0 read · T2 verify (every movement of money: payments, transfers, conversions, scheduled payments) · T3 blocked. There is no auto-execute tier |
-| **Device verification** | The phone's key (in Secure Enclave / Android Keystore, unlocked by Face ID / fingerprint) signs a one-time challenge for each payment. The server checks the signature, the owner and the expiry (15 min; 24 h for scheduled payments), and a signature cannot be reused. Only the student can approve; the AI cannot |
+| **Device verification** | A P-256 key in the phone's Android Keystore (StrongBox when available, otherwise the TEE), unlocked for each use by fingerprint / face unlock (Android BiometricPrompt), signs a one-time challenge for each payment. The server checks the signature, the owner and the expiry (15 min; 24 h for scheduled payments), and a signature cannot be reused. Adding a phone notifies the student. Only the student can approve; the AI cannot |
 | **Tamper-evident audit log** | Every agent action, decision, verification, reminder, monitor run and payment is recorded in a hash chain; any edit is detectable |
 
 ## Not included (removed on purpose)
@@ -176,6 +182,6 @@ in the sandbox) · phone registration `POST /api/devices`, `GET /api/devices`
 - Payments run in a sandbox: simulated accounts, no real money. Production would use licensed bank and payment partners.
 - Exchange rates are live mid-market rates; provider fees and margins are fictional.
 - The risk model is trained on synthetic data built from documented fraud patterns (no public dataset covers student tuition and remittance fraud).
-- The server side of device verification is complete; the phone app that holds the key is a separate client. There is no key attestation yet and no recovery flow for a lost phone. For demos through the API docs, `VERIFICATION_MODE=sandbox` accepts `{"sandbox": true}` instead of a signature; it must be off in production.
+- The server side of device verification is complete; the Android app that holds the key is a separate client. The server does not check key attestation yet, adding a phone needs only the login token (the student is notified), and there is no way to remove a phone or recover from a lost one. For demos through the API docs, `VERIFICATION_MODE=sandbox` accepts `{"sandbox": true}` instead of a signature; the server refuses to start with it when `ENVIRONMENT=production`.
 - A scheduled payment that the wallet cannot cover is not prepared; the student gets a notification instead. There is no automatic conversion for scheduled payments yet (tuition has one).
-- The daily monitor runs inside the API process at server local time; push notifications depend on Expo and are off by default.
+- The daily monitor runs inside the API process at server local time; push notifications use Firebase Cloud Messaging (Google), are off by default and are not retried.

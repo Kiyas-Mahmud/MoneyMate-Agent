@@ -2,7 +2,7 @@
 
 **An AI agent that pays tuition and moves money across borders for international students, with a
 hybrid ML fraud guard and permission tiers. The agent plans and prepares every payment, but it never moves
-money on its own: each one is completed only after the student verifies it on their phone.**
+money on its own: each one is completed only after the student verifies it on their Android phone.**
 
 Built for the 2026 Shenzhen International FinTech Competition (FinTechathon), International Track,
 **Topic C: Cross-border & Student Finance Assistant**. Theme: *AI as a Financial Participant*.
@@ -42,7 +42,7 @@ Behavioural features (20) ──► Hybrid risk model ──► Policy engine
         ▼
 Prepared payment + "Verify to complete your payment" notification + audit entry
         ▼
-Student verifies on their phone (Face ID / fingerprint signs a one-time challenge)
+Student verifies on their Android phone (fingerprint / face unlock signs a one-time challenge)
         ▼
 Money moves in the sandbox ledger ──► receipt + "Payment complete" notification
 ```
@@ -78,13 +78,22 @@ money without the student's verification, however small the amount or familiar t
 
 ### Device verification
 
-The phone app creates an Ed25519 key pair in secure hardware (Secure Enclave / Android Keystore) behind
-Face ID or fingerprint and registers only the public key (`POST /api/devices`). Each prepared payment gets
-a one-time nonce; the phone fetches `GET /api/agent/actions/{id}/challenge`, signs
-`moneymate-verify:{action_id}:{nonce}` and sends `POST /api/agent/actions/{id}/verify` with `device_id` and
-`signature`. The server checks the signature with the stored key, that the phone belongs to the same
-student and that the request has not expired, then clears the nonce so the signature cannot be replayed.
-A stolen password or a message to the agent cannot produce this signature.
+The Android app creates a P-256 (ECDSA) key pair in the Android Keystore (StrongBox when the phone has it,
+otherwise the TEE). The key requires user authentication, is unlocked for each use by BiometricPrompt
+(fingerprint / face unlock, `BIOMETRIC_STRONG`) and is invalidated when a new biometric is enrolled. Only the
+public key is registered: `POST /api/devices` with `key_type: "p256"` and the base64 X.509
+SubjectPublicKeyInfo from `getPublicKey().getEncoded()`. Registering a phone sends a "New phone added"
+notification. Each prepared payment gets a one-time nonce; the phone fetches
+`GET /api/agent/actions/{id}/challenge`, signs `moneymate-verify:{action_id}:{nonce}` with
+`SHA256withECDSA` and sends `POST /api/agent/actions/{id}/verify` with `device_id` and the DER `signature`.
+The server checks the signature with the stored key, that the phone belongs to the same student and that the
+request has not expired, then clears the nonce so the signature cannot be replayed. A stolen password or a
+message to the agent cannot produce this signature. Ed25519 keys (`key_type: "ed25519"`, 32 raw bytes) are
+also accepted, for test clients; EC keys on any curve other than P-256 are refused.
+
+Push notifications go to the app through Firebase Cloud Messaging (FCM HTTP v1), off by default
+(`PUSH_ENABLED`, `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_FILE`). The app updates its FCM token with
+`POST /api/devices/{id}/push-token`.
 
 ## Run it locally
 
@@ -99,8 +108,8 @@ cp .env.example .env        # set JWT_SECRET_KEY; GEMINI_API_KEY is optional
 uvicorn app.main:app --port 8000
 ```
 
-The web and mobile clients are maintained separately and are not part of this repository. Everything can
-be exercised through the interactive API docs at <http://localhost:8000/docs>: call `POST /api/auth/login`
+The Android app is maintained separately and is not part of this repository (see
+[Android app](#android-app) below). Everything can be exercised through the interactive API docs at <http://localhost:8000/docs>: call `POST /api/auth/login`
 with the demo student `ayesha` (password = `DEMO_USER_PASSWORD` in `backend/.env`, default `Demo@2026`,
 sandbox only), click **Authorize** with the returned token, then try `POST /api/agent/chat` with
 `{"message": "Pay my tuition"}`. The answer is `AWAITING_VERIFICATION` with a two-step `plan` (convert BDT,
@@ -113,14 +122,16 @@ then pay) and a `VERIFY_PAYMENT` notification (`GET /api/notifications`).
 
    ```python
    import base64
-   from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+   from cryptography.hazmat.primitives import hashes
+   from cryptography.hazmat.primitives.asymmetric import ec
    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-   key = Ed25519PrivateKey.generate()
-   print(base64.b64encode(key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)).decode())
-   # POST /api/devices {"name": "My phone", "public_key": "<printed value>"}  -> {"id": ...}
-   # GET  /api/agent/actions/{id}/challenge                                   -> {"challenge": "..."}
+   key = ec.generate_private_key(ec.SECP256R1())          # same key type as the Android Keystore key
+   pub = key.public_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
+   print(base64.b64encode(pub).decode())
+   # POST /api/devices {"name": "My phone", "key_type": "p256", "public_key": "<printed value>"}  -> {"id": ...}
+   # GET  /api/agent/actions/{id}/challenge                                    -> {"challenge": "..."}
    challenge = "moneymate-verify:..."   # paste the challenge text
-   print(base64.b64encode(key.sign(challenge.encode())).decode())
+   print(base64.b64encode(key.sign(challenge.encode(), ec.ECDSA(hashes.SHA256()))).decode())
    # POST /api/agent/actions/{id}/verify {"device_id": ..., "signature": "<printed value>"}
    ```
 
@@ -136,6 +147,19 @@ prepared; simulated dates are refused when `ENVIRONMENT=production`).
 Without a key (or when the free quota runs out) the agent uses a deterministic intent parser that calls
 the same tools, so the demo always works.
 
+### Android app
+
+The client is an Android app (Flutter UI, with a small Kotlin platform channel for the Keystore key and
+BiometricPrompt). [docs/ANDROID_INTEGRATION.md](docs/ANDROID_INTEGRATION.md) covers the key, FCM push and
+every API call it makes. To run the backend for the phone, listen on all interfaces:
+
+```bash
+cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+The Android emulator reaches it at `http://10.0.2.2:8000/api`; a phone on the same Wi-Fi uses
+`http://<laptop-LAN-IP>:8000/api`. Plain `http` is for debug builds only.
+
 ### Retrain the model (optional, ~8 min on CPU)
 
 ```bash
@@ -150,7 +174,8 @@ python -m ml.train_hybrid
 cd backend && python -m pytest -q
 ```
 
-44 tests, all passing. The tests play the phone with a real Ed25519 key pair.
+51 tests, all passing. The tests play the phone with real key pairs: an Android-Keystore-style P-256 key
+(`AndroidPhone` in `tests/conftest.py`) and an Ed25519 test-client key (`Phone`, used by the older tests).
 
 - **End-to-end scenarios** (`test_scenarios.py`, 12): tuition with a planned conversion and one
   verification, fake-invoice impersonation block, even a small family transfer waits for verification
@@ -166,6 +191,9 @@ cd backend && python -m pytest -q
   verification and tamper detection, receipt PDF, no receipt before verification, receipt access control,
   live FX with offline fallback, and the Gemini second opinion (escalates, never downgrades, falls back on
   errors) with a mocked model.
+- **Android** (`test_android.py`, 7): a P-256 Keystore key verifies a payment, a P-256 signature for another
+  payment fails, a key on the wrong curve is refused, a new phone triggers an alert, the push token can be
+  rotated, the FCM message format (mocked token and HTTP), and a push failure does not break the payment.
 
 ## Project layout
 
@@ -182,8 +210,8 @@ backend/
       risk/          feature builder, hybrid scorer, live engine with explanations
       policy.py      permission tiers (T0 read, T2 verify, T3 block)
       payments.py    tuition / remittance / FX pipeline, verify and reject
-      devices.py     phone key registration and signature check
-      notify.py      in-app notifications, optional Expo push
+      devices.py     Android phone key registration (P-256; Ed25519 for test clients), signature check
+      notify.py      in-app notifications, optional Firebase Cloud Messaging push
       standing.py    standing instructions (recurring payments)
       monitor.py     daily monitor and its background scheduler
       verification.py payee registry check + scam red flags
@@ -192,8 +220,8 @@ backend/
       audit.py       hash-chained audit log
       sandbox.py     simulated wallets and providers, live FX rates with fallback
   ml/                synthetic data generator, training pipeline, model artifact
-  tests/             scenarios, verification / monitor tests, feature tests
-docs/                features, technical documentation, security self-assessment
+  tests/             scenarios, verification / monitor tests, feature tests, Android key and push tests
+docs/                features, technical documentation, security self-assessment, Android integration guide
 ```
 
 ## Scope and honesty notes
@@ -205,9 +233,13 @@ docs/                features, technical documentation, security self-assessment
 - The deployed model is trained on synthetic data (see above).
 - The Gemini second opinion sends the pasted message text to Google's Gemini API; leave `GEMINI_API_KEY`
   empty to keep everything local.
-- Device verification is implemented on the server; the phone app that holds the key is a separate
-  client. The server cannot yet prove the key really sits in secure hardware (no key attestation), and
-  there is no flow for a lost phone. `VERIFICATION_MODE=sandbox` turns verification into a single API call
-  and must stay off in production.
+- Device verification is implemented on the server; the Android app that holds the key is a separate
+  client. The server cannot yet prove the key really sits in the Keystore behind a biometric (no key
+  attestation check), adding a phone needs only the login token (the student is notified, but there is no
+  step-up), and there is no way to remove a phone or recover from a lost one. `VERIFICATION_MODE=sandbox`
+  turns verification into a single API call; the server refuses to start with it when
+  `ENVIRONMENT=production`.
+- Push notifications (off by default) send each notification's title and body through Google's Firebase
+  Cloud Messaging.
 - A scheduled payment the wallet cannot cover is not prepared; the student gets a notification instead
   (no automatic conversion for scheduled payments yet).
