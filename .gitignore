@@ -8,16 +8,10 @@ __pycache__/
 .pytest_cache/
 backend/*.db
 backend/ml/data/
-# node / nuxt
+# node
 node_modules/
-frontend/.nuxt/
-frontend/.output/
-frontend/.data/
-frontend/dist/
 # os / editors
 .DS_Store
 .vscode/
 .idea/
 
-# UI is not part of this repository
-frontend/

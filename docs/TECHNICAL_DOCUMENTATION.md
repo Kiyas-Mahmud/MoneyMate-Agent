@@ -43,7 +43,7 @@ the student, or is refused.
 
 ```mermaid
 flowchart TD
-    S([Student]) --> UI["Nuxt 4 SPA<br/>(dashboard, agent chat, tuition,<br/>transfers, wallet, scam check, activity)"]
+    S([Student]) --> UI["Client app<br/>(any web or mobile UI)"]
     UI -- "REST + JWT bearer" --> API["FastAPI backend<br/>/api/auth, /api/agent, finance, system routes"]
 
     API --> ORCH["Agent orchestrator<br/>orchestrator.py"]
@@ -76,7 +76,7 @@ flowchart TD
 
 | Layer | Technology | Code |
 |---|---|---|
-| Frontend | Nuxt 4 single-page app (`ssr: false`), Tailwind CSS 4, lucide icons | Separate repository (not included here) |
+| Client | Any web or mobile app calling the REST API (not part of this repository); the interactive API docs at `/docs` can drive every flow | – |
 | API | FastAPI, Pydantic v2 request models, CORS restricted to configured origins | `backend/app/main.py`, `backend/app/routes/` |
 | Auth | bcrypt password hashes, HS256 JWT bearer tokens (120 min) | `backend/app/core/security.py` |
 | Database | SQLAlchemy 2.0; SQLite by default, any SQLAlchemy URL via `DATABASE_URL` | `backend/app/core/database.py`, `backend/app/models/` |
@@ -439,7 +439,7 @@ the deterministic agent path. Result on 2026-10-16: **12 passed**.
 | `test_audit_chain_detects_tampering` | Editing one audit row makes verification fail; restoring it passes |
 | `test_requires_authentication` | Wallet and chat reject requests without a token |
 
-The same scenarios can be run by hand in the app with the demo student `ayesha` to record execution
+The same scenarios can be run by hand through the API docs at `/docs` with the demo student `ayesha` to record execution
 evidence (screens: agent chat with action cards, Activity & Audit with chain verification).
 
 ---
@@ -454,7 +454,7 @@ evidence (screens: agent chat with action cards, Activity & Audit with chain ver
   Bengali) and can flag harmless text that mentions words such as "police".
 - **The fallback parser is narrow.** It handles the demo phrasings well; free-form requests need Gemini.
 - **No re-scoring at confirmation.** A T2 action keeps the risk decision it had when it was created.
-- **Preview features.** The tuition FX planner and Financial Passport are marked *Preview* in the app.
+- **Preview features.** The Financial Passport (`GET /api/credit/passport`) is a preview.
 - **Prototype security posture** (tokens in browser storage, no rate limiting, no MFA, SQLite by default):
   see the known-risk table in the security self-assessment.
 
