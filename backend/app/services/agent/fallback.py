@@ -38,11 +38,9 @@ def _status_line(result: dict) -> str:
         return f"I couldn't do that: {result['error']}"
     risk = result.get("risk", {})
     risk_txt = f" Risk: {risk.get('level')} ({risk.get('score', 0):.0%})." if risk else ""
-    if s == "AUTO_EXECUTED":
-        return f"Done: {result['summary']}.{risk_txt}"
-    if s == "AWAITING_CONFIRMATION":
-        rules = "; ".join(result["policy"]["rules"])
-        return f"Ready: {result['summary']}.{risk_txt} Please confirm it on the card below ({rules})."
+    if s == "AWAITING_VERIFICATION":
+        return (f"Prepared: {result['summary']}.{risk_txt} I sent you a notification. Please complete verification "
+                f"on your phone to complete the payment.")
     if s == "BLOCKED":
         rules = "; ".join(result["policy"]["rules"])
         reasons = "; ".join(r["text"] for r in risk.get("reasons", []))
@@ -73,6 +71,17 @@ def respond(db: Session, user: User, session_id: str, message: str, actions: lis
         return (f"{verdict} {flags}.{tail}{ai} Do not pay until it is verified with your university's "
                 f"official portal.")
 
+    m = re.search(rf"\b(?:every|each)\s+month\b.*?{NUM}\s?{CUR}?.*?\bto\s+(?:my\s+)?([a-z][\w .'-]{{1,40}}?)"
+                  rf"(?:\s+on\s+(?:the\s+)?(\d{{1,2}})(?:st|nd|rd|th)?)?$", low)
+    if m:
+        r = call("create_standing_instruction", recipient=m.group(3).strip(), amount=float(m.group(1).replace(",", "")),
+                 currency=_cur(m.group(2)), day_of_month=int(m.group(4) or 1))
+        if r["status"] == "ERROR":
+            return _status_line(r)
+        si = r["standing_instruction"]
+        return (f"Set up: {si['amount']:,.0f} {si['currency']} to {si['recipient']} on day {si['day_of_month']} of "
+                f"every month. I'll prepare it that morning and ask you to verify it before anything is sent.")
+
     if re.search(r"\b(deadline|due|remind\w*)\b", low):
         r = call("get_tuition_reminders")
         return " ".join(x["message"] for x in r.get("reminders", [])) or "You have no open tuition invoices."
@@ -87,7 +96,7 @@ def respond(db: Session, user: User, session_id: str, message: str, actions: lis
         if m:
             r = call("convert_currency", amount=float(m.group(1).replace(",", "")), from_currency=_cur(m.group(2)),
                      to_currency=_cur(m.group(3)))
-            return _status_line(r) if r["status"] == "ERROR" else f"Done: {r['summary']}."
+            return _status_line(r)
         return "Tell me the amount and currencies, for example: convert 5000 BDT to CNY."
 
     if re.search(r"\b(compare|cheapest|best rate|fees? to send)\b", low):
@@ -126,6 +135,6 @@ def respond(db: Session, user: User, session_id: str, message: str, actions: lis
         return "Recent: " + "; ".join(f"{t['kind']} {t['amount']:,.0f} {t['currency']} ({t['status']})"
                                       for t in r["transactions"]) + "."
 
-    return ("I can pay your tuition, remind you of deadlines, send money home, compare transfer fees, convert "
-            "currencies, give payment receipts, or check if a payment request is a scam. Try: \"pay my tuition\" "
-            "or \"send 2000 CNY to mother\".")
+    return ("I can pay your tuition, remind you of deadlines, send money home, set up monthly payments, compare "
+            "transfer fees, convert currencies, give payment receipts, or check if a payment request is a scam. "
+            "Every payment waits for your verification. Try: \"pay my tuition\" or \"send 2000 CNY to mother\".")

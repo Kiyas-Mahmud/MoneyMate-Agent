@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import AgentAction, Payee, Transaction, User
-from app.services import audit, payments, receipts, reminders, sandbox, verification
+from app.services import audit, payments, receipts, reminders, sandbox, standing, verification
 from app.services.agent.second_opinion import analyze_with_second_opinion
 
 STR, NUM = {"type": "string"}, {"type": "number"}
@@ -43,20 +43,29 @@ DECLARATIONS = [
                      "anyone can check. Without transaction_id, returns the most recent completed payment."),
      "parameters": _obj({"transaction_id": {"type": "integer"}})},
     {"name": "pay_tuition",
-     "description": ("Pay tuition. With no payee, pays the student's registered university. If the student pasted an "
-                     "invoice or message, pass it as request_text so it is checked. The policy engine decides whether it "
-                     "runs, needs the student's confirmation in the app, or is blocked."),
+     "description": ("Prepare a tuition payment. With no payee, uses the student's registered university and open "
+                     "invoice. If the wallet is short, it plans the currency conversion too, verified together. If the "
+                     "student pasted an invoice or message, pass it as request_text so it is checked. Nothing is paid "
+                     "until the student verifies on their phone; risky payments are blocked."),
      "parameters": _obj({"amount": NUM, "currency": STR, "payee_name": STR, "account_ref": STR, "semester": STR,
                          "request_text": STR})},
     {"name": "send_remittance",
-     "description": ("Send money to a person abroad or at home (e.g. family). Picks the cheapest provider unless one is "
-                     "given. New recipients need account_ref and country. currency = what the student pays in."),
+     "description": ("Prepare a transfer to a person abroad or at home (e.g. family). Picks the cheapest provider unless "
+                     "one is given. New recipients need account_ref and country. currency = what the student pays in. "
+                     "It is sent only after the student verifies on their phone."),
      "parameters": _obj({"recipient": STR, "amount": NUM, "currency": STR, "receive_currency": STR,
                          "provider_id": STR, "account_ref": STR, "country": STR,
                          "channel": {"type": "string", "enum": ["BANK_TRANSFER", "EWALLET_P2P", "CRYPTO", "GIFT_CARD"]},
                          "request_text": STR},
                         ["recipient", "amount"])},
-    {"name": "convert_currency", "description": "Convert money between the student's own wallets.",
+    {"name": "create_standing_instruction",
+     "description": ("Set up a recurring payment (rent, monthly money for family) on a day of the month (1-28). "
+                     "On that day the agent prepares it and the student verifies it."),
+     "parameters": _obj({"recipient": STR, "amount": NUM, "day_of_month": {"type": "integer"}, "currency": STR,
+                         "note": STR}, ["recipient", "amount", "day_of_month"])},
+    {"name": "list_standing_instructions", "description": "List the student's recurring payments.",
+     "parameters": _obj({})},
+    {"name": "convert_currency", "description": "Prepare a conversion between the student's own wallets (verified before it runs).",
      "parameters": _obj({"amount": NUM, "from_currency": STR, "to_currency": STR},
                         ["amount", "from_currency", "to_currency"])},
 ]
@@ -112,6 +121,17 @@ def run_tool(db: Session, user: User, session_id: str, name: str, args: dict) ->
                               .order_by(Transaction.created_at.desc()).limit(int(args.get("limit", 8)))).all()
             result = {"transactions": [payments.tx_view(t) for t in rows]}
             summary = "Listed recent transactions"
+        elif name == "create_standing_instruction":
+            si = standing.create(db, user, recipient=args["recipient"], amount=float(args["amount"]),
+                                 day_of_month=int(args["day_of_month"]), currency=args.get("currency"),
+                                 note=args.get("note"))
+            result = {"standing_instruction": standing.view(db, si)}
+            summary = f"Set up {si.amount:,.0f} {si.currency} every month on day {si.day_of_month}"
+        elif name == "list_standing_instructions":
+            from app.models import StandingInstruction
+            rows = db.scalars(select(StandingInstruction).where(StandingInstruction.user_id == user.id)).all()
+            result = {"standing_instructions": [standing.view(db, si) for si in rows]}
+            summary = "Listed standing instructions"
         elif name == "get_tuition_reminders":
             result = {"reminders": reminders.tuition_reminders(db, user)}
             summary = "Checked tuition deadlines"
@@ -131,5 +151,6 @@ def run_tool(db: Session, user: User, session_id: str, name: str, args: dict) ->
         result = {"status": "READ", **result}
         result["action_id"] = _record_read(db, user, session_id, name, args, summary, result)
         return result
-    except (payments.PaymentError, sandbox.SandboxError, receipts.ReceiptError, KeyError, ValueError) as e:
+    except (payments.PaymentError, sandbox.SandboxError, receipts.ReceiptError, standing.StandingError,
+            KeyError, ValueError) as e:
         return {"status": "ERROR", "error": str(e) if not isinstance(e, KeyError) else f"Missing argument {e}"}

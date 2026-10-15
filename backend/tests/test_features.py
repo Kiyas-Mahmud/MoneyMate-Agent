@@ -46,19 +46,25 @@ def test_agent_answers_deadline_question_without_paying(client, auth):
 
 # ---------- payment receipts ----------
 
-def test_completed_payment_gets_verifiable_receipt(client, auth):
-    act = money_action(chat(client, auth, "send 500 CNY to mother"))
-    rc = act["receipt"]
+def paid(client, auth, phone, message="send 500 CNY to mother"):
+    act = money_action(chat(client, auth, message))
+    r = phone.verify(act["action_id"])
+    assert r.status_code == 200, r.text
+    return r.json()["result"]["receipt"]
+
+
+def test_completed_payment_gets_verifiable_receipt(client, auth, phone):
+    rc = paid(client, auth, phone)
     assert rc["reference"].startswith("MM-") and rc["amount"] == 500.0
+    assert rc["approval"] == "Verified by the student on their phone"
     ok = client.get("/api/receipts/verify", params={"reference": rc["reference"], "code": rc["verification_code"]})
     assert ok.json()["valid"] is True                                     # public: no auth header needed
     bad = client.get("/api/receipts/verify", params={"reference": rc["reference"], "code": "0000-0000-0000-0000"})
     assert bad.json()["valid"] is False
 
 
-def test_altered_payment_invalidates_receipt(client, auth):
-    act = money_action(chat(client, auth, "send 500 CNY to mother"))
-    rc = act["receipt"]
+def test_altered_payment_invalidates_receipt(client, auth, phone):
+    rc = paid(client, auth, phone)
     with SessionLocal() as db:
         db.execute(update(Transaction).where(Transaction.id == rc["transaction_id"]).values(amount=5000.0))
         db.commit()
@@ -66,20 +72,21 @@ def test_altered_payment_invalidates_receipt(client, auth):
     assert r.json()["valid"] is False
 
 
-def test_receipt_pdf_and_no_receipt_for_blocked(client, auth):
-    act = money_action(chat(client, auth, "send 300 CNY to mother"))
-    pdf = client.get(f"/api/transactions/{act['transaction']['id']}/receipt.pdf", headers=auth)
+def test_receipt_pdf_and_no_receipt_before_verification(client, auth, phone):
+    rc = paid(client, auth, phone, "send 300 CNY to mother")
+    pdf = client.get(f"/api/transactions/{rc['transaction_id']}/receipt.pdf", headers=auth)
     assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
+    pending = money_action(chat(client, auth, "send 200 CNY to mother"))
+    assert client.get(f"/api/transactions/{pending['transaction']['id']}/receipt", headers=auth).status_code == 400
     blocked = client.post("/api/tuition/pay", headers=auth, json={"request_text": FAKE_INVOICE}).json()
-    r = client.get(f"/api/transactions/{blocked['transaction']['id']}/receipt", headers=auth)
-    assert r.status_code == 400
+    assert client.get(f"/api/transactions/{blocked['transaction']['id']}/receipt", headers=auth).status_code == 400
 
 
-def test_receipt_of_other_users_transaction_is_hidden(client, auth):
-    act = money_action(chat(client, auth, "send 300 CNY to mother"))
+def test_receipt_of_other_users_transaction_is_hidden(client, auth, phone):
+    rc = paid(client, auth, phone, "send 300 CNY to mother")
     other = client.post("/api/auth/register", json={"username": "snoop2026", "password": "Snoop#2026x",
                                                     "full_name": "Snoop"}).json()["access_token"]
-    r = client.get(f"/api/transactions/{act['transaction']['id']}/receipt", headers={"Authorization": f"Bearer {other}"})
+    r = client.get(f"/api/transactions/{rc['transaction_id']}/receipt", headers={"Authorization": f"Bearer {other}"})
     assert r.status_code == 404
 
 

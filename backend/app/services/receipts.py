@@ -62,7 +62,7 @@ def _fields(db: Session, tx: Transaction, user: User) -> dict:
         "memo": tx.memo,
         "executed_at": executed.isoformat(timespec="seconds"),
         "approval": "Conversion between the student's own wallets" if tx.kind == "FX" else
-                    {"T1": "Auto-approved (low risk, known payee)", "T2": "Confirmed by the student",
+                    {"T2": "Verified by the student on their phone", "T1": "Confirmed by the student",
                      "T0": "Incoming transfer"}.get(tx.tier or "", tx.tier),
     }
 

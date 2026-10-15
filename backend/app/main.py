@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -6,7 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import SessionLocal, init_db
-from app.routes import agent, auth, finance, system
+from app.routes import agent, auth, finance, mobile, system
+from app.services import monitor
 from app.services.risk.engine import load_bundle
 from app.services.seed import seed
 
@@ -19,7 +21,10 @@ async def lifespan(_: FastAPI):
     with SessionLocal() as db:
         seed(db)
     load_bundle()  # load the hybrid model once at startup
+    task = asyncio.create_task(monitor.scheduler()) if settings.MONITOR_ENABLED else None
     yield
+    if task:
+        task.cancel()
 
 
 app = FastAPI(title=settings.APP_NAME, version="1.0.0", lifespan=lifespan,
@@ -29,7 +34,7 @@ app = FastAPI(title=settings.APP_NAME, version="1.0.0", lifespan=lifespan,
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=False,
                    allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
 
-for r in (auth.router, finance.router, agent.router, system.router):
+for r in (auth.router, finance.router, agent.router, mobile.router, system.router):
     app.include_router(r, prefix="/api")
 
 
