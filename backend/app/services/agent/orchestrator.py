@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models import ChatMessage, Payee, User
+from app.services import reminders
 from app.services.agent import fallback
 from app.services.agent.tools import DECLARATIONS, run_tool
 
@@ -34,6 +35,9 @@ Rules:
   ERROR = explain what is missing. Never say a payment is done unless the status says so.
 - You cannot confirm payments yourself. Only the student can, in the app.
 - For remittances, mention the cheapest provider and the total cost.
+- If the profile lists upcoming tuition alerts and they are relevant (or not yet mentioned in this chat),
+  mention them in one sentence and offer to convert money or pay.
+- When a payment completes, mention its receipt reference so the student can download proof.
 - Keep replies short (2-5 sentences), friendly and in simple English. Use the student's currencies.
 
 Student profile:
@@ -41,11 +45,12 @@ Student profile:
 """
 
 
-def _profile(db: Session, user: User) -> str:
+def _profile(db: Session, user: User, alerts: list[dict]) -> str:
     uni = db.get(Payee, user.university_payee_id) if user.university_payee_id else None
     return json.dumps({"name": user.full_name, "home_country": user.home_country, "home_currency": user.home_currency,
                        "study_country": user.study_country, "study_currency": user.study_currency,
-                       "registered_university": uni.name if uni else None})
+                       "registered_university": uni.name if uni else None,
+                       "upcoming_tuition_alerts": [a["message"] for a in alerts]})
 
 
 def _compact(result: dict) -> dict:
@@ -67,7 +72,7 @@ def _history(db: Session, user: User, session_id: str, limit: int = 12):
     return list(reversed(rows))
 
 
-def _gemini_turn(db: Session, user: User, session_id: str, message: str, actions: list) -> str:
+def _gemini_turn(db: Session, user: User, session_id: str, message: str, actions: list, alerts: list) -> str:
     from google import genai
     from google.genai import types
 
@@ -75,7 +80,7 @@ def _gemini_turn(db: Session, user: User, session_id: str, message: str, actions
     tools = [types.Tool(function_declarations=[
         types.FunctionDeclaration(name=d["name"], description=d["description"], parameters_json_schema=d["parameters"])
         for d in DECLARATIONS])]
-    config = types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT.format(profile=_profile(db, user)),
+    config = types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT.format(profile=_profile(db, user, alerts)),
                                          tools=tools, temperature=0.2)
 
     contents = [types.Content(role="user" if m.role == "user" else "model", parts=[types.Part(text=m.content)])
@@ -99,12 +104,13 @@ def _gemini_turn(db: Session, user: User, session_id: str, message: str, actions
 
 def chat(db: Session, user: User, message: str, session_id: str | None = None) -> dict:
     session_id = session_id or uuid.uuid4().hex[:16]
+    alerts = [r for r in reminders.tuition_reminders(db, user) if r["alert"]]
     actions: list[dict] = []
     engine = "fallback"
     reply = None
     if settings.GEMINI_API_KEY:
         try:
-            reply = _gemini_turn(db, user, session_id, message, actions)
+            reply = _gemini_turn(db, user, session_id, message, actions, alerts)
             engine = "gemini"
         except Exception as e:  # quota, network, model errors -> keep the product working
             log.warning("Gemini unavailable, using fallback parser: %s", e)
@@ -118,4 +124,4 @@ def chat(db: Session, user: User, message: str, session_id: str | None = None) -
     db.add(ChatMessage(user_id=user.id, session_id=session_id, role="user", content=message))
     db.add(ChatMessage(user_id=user.id, session_id=session_id, role="assistant", content=reply or "", action_ids=action_ids))
     db.commit()
-    return {"session_id": session_id, "reply": reply, "engine": engine, "actions": actions}
+    return {"session_id": session_id, "reply": reply, "engine": engine, "actions": actions, "reminders": alerts}

@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models import AgentAction, Payee, Transaction, TuitionInvoice, User
-from app.services import audit, sandbox, verification
+from app.services import audit, receipts, sandbox, verification
 from app.services.policy import decide_payment
 from app.services.risk import engine
 
@@ -77,6 +77,8 @@ def _finalize(db: Session, user: User, *, session_id: str, tool: str, args: dict
     result = {"status": action.status, "summary": summary, "policy": decision.as_dict(),
               "risk": {k: risk[k] for k in ("score", "level", "reasons", "protective_factors", "model_scores")},
               "transaction": tx_view(tx), **extra}
+    if tx.status == "COMPLETED":
+        result["receipt"] = receipts.build(db, tx)
     action.result = result
     db.add(action)
     db.flush()
@@ -236,7 +238,7 @@ def convert_currency(db: Session, user: User, *, session_id: str, initiated_by: 
     db.add(action)
     db.flush()
     action.result = {"status": "AUTO_EXECUTED", "summary": action.summary, "quote": q, "action_id": action.id,
-                     "transaction": tx_view(tx)}
+                     "transaction": tx_view(tx), "receipt": receipts.build(db, tx)}
     audit.record(db, user_id=user.id, actor="AGENT" if initiated_by == "AGENT" else "STUDENT",
                  event="FX_CONVERTED", tier="T1", details={"action_id": action.id, "amount": amount, "from": src,
                                                           "to": dst, "received": q["receive_amount"]})
@@ -274,7 +276,8 @@ def confirm_action(db: Session, user: User, action_id: int) -> dict:
     sandbox.settle(db, tx)  # re-checks the balance at execution time
     _settle_invoice(db, a, tx)
     a.status, a.decided_at = "CONFIRMED", _now()
-    a.result = {**(a.result or {}), "status": "CONFIRMED", "transaction": tx_view(tx)}
+    a.result = {**(a.result or {}), "status": "CONFIRMED", "transaction": tx_view(tx),
+                "receipt": receipts.build(db, tx)}
     audit.record(db, user_id=user.id, actor="STUDENT", event="PAYMENT_CONFIRMED", tier=a.tier,
                  details={"action_id": a.id, "transaction_id": tx.id, "amount": tx.amount, "currency": tx.currency,
                           "counterparty": tx.counterparty})
@@ -293,28 +296,3 @@ def reject_action(db: Session, user: User, action_id: int) -> dict:
     audit.record(db, user_id=user.id, actor="STUDENT", event="PAYMENT_REJECTED", tier=a.tier,
                  details={"action_id": a.id, "transaction_id": tx.id})
     return action_view(a)
-
-
-def credit_passport(db: Session, user: User) -> dict:
-    """Verified payment history the student can share with landlords or banks (preview)."""
-    txs = db.scalars(select(Transaction).where(Transaction.user_id == user.id, Transaction.status == "COMPLETED",
-                                               Transaction.direction == "OUT")
-                     .order_by(Transaction.created_at)).all()
-    if not txs:
-        return {"months_of_history": 0, "on_time_payments": 0, "score": None}
-    first = txs[0].created_at
-    months = max(1, round((_now() - (first if first.tzinfo else first.replace(tzinfo=timezone.utc))).days / 30))
-    tuition = [t for t in txs if t.kind == "TUITION"]
-    remits = [t for t in txs if t.kind == "REMITTANCE_OUT"]
-    blocked = db.scalar(select(func.count()).select_from(Transaction).where(
-        Transaction.user_id == user.id, Transaction.status == "BLOCKED")) or 0
-    # Transparent 300-850 style indicator: history length, payment count, tuition record. Not a bureau score.
-    raw = 300 + min(months, 24) * 10 + min(len(txs), 60) * 3 + min(len(tuition), 4) * 25 + min(len(remits), 12) * 5
-    return {
-        "holder": user.full_name, "home_country": user.home_country, "study_country": user.study_country,
-        "months_of_history": months, "on_time_payments": len(txs), "tuition_payments": len(tuition),
-        "tuition_total_usd": round(sum(t.amount_usd for t in tuition), 2),
-        "remittances_sent": len(remits), "blocked_fraud_attempts": blocked,
-        "reliability_score": min(raw, 850),
-        "note": "Preview: verified payment history from MoneyMate, not a credit bureau score.",
-    }

@@ -52,12 +52,13 @@ def build_features(db: Session, user: User, *, kind: str, amount_usd: float, pay
                    payee_country: str | None = None, pressure_flags: int = 0,
                    name_account_mismatch: bool = False, now: datetime | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
+    # Payments to third parties only: conversions between the student's own wallets are not outflows
     completed_out = select(Transaction).where(Transaction.user_id == user.id, Transaction.direction == "OUT",
-                                              Transaction.status == "COMPLETED")
+                                              Transaction.status == "COMPLETED", Transaction.kind != "FX")
 
     avg_90d = db.scalar(select(func.avg(Transaction.amount_usd)).where(
         Transaction.user_id == user.id, Transaction.direction == "OUT", Transaction.status == "COMPLETED",
-        Transaction.created_at >= now - timedelta(days=90)))
+        Transaction.kind != "FX", Transaction.created_at >= now - timedelta(days=90)))
     recent = db.scalars(completed_out.where(Transaction.created_at >= now - timedelta(hours=24))).all()
 
     if payee is not None:

@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
 
+    FX_LIVE: bool = True
+    FX_API_URL: str = "https://open.er-api.com/v6/latest/USD"
+    FX_CACHE_SECONDS: int = 3600
+
     MODEL_BUNDLE_PATH: str = str(BACKEND_DIR / "ml" / "artifacts" / "hybrid_risk_model.joblib")
 
     # Permission-tier limits (USD equivalent)
@@ -34,6 +38,10 @@ class Settings(BaseSettings):
     CONFIRMATION_TTL_MINUTES: int = 15
 
     DEMO_USER_PASSWORD: str = "Demo@2026"
+
+    # Receipts: HMAC key for verification codes (defaults to a key derived from JWT_SECRET_KEY)
+    RECEIPT_SIGNING_KEY: str = ""
+    PUBLIC_BASE_URL: str = "http://localhost:8000"
 
     @property
     def cors_origins(self) -> list[str]:

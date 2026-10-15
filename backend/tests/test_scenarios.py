@@ -1,5 +1,6 @@
 """End-to-end scenarios for the MoneyMate agent (sandbox accounts, deterministic agent path)."""
 
+import pytest
 from sqlalchemy import update
 
 from app.core.database import SessionLocal
@@ -18,6 +19,12 @@ def chat(client, auth, message, session_id=None):
     return r.json()
 
 
+def fund_tuition(client, auth):
+    """Demo wallet starts short of the 26,000 CNY invoice; convert BDT so tuition can be paid."""
+    client.post("/api/wallet/convert", headers=auth, json={"amount": 160000, "from_currency": "BDT",
+                                                          "to_currency": "CNY"})
+
+
 def money_action(resp):
     return next(a for a in resp["actions"] if a["tool"] in ("pay_tuition", "send_remittance", "convert_currency"))
 
@@ -34,6 +41,7 @@ def test_wallet_has_multi_currency_balances(client, auth):
 
 
 def test_pay_tuition_needs_confirmation_then_completes(client, auth):
+    fund_tuition(client, auth)
     before = balance(client, auth, "CNY")
     resp = chat(client, auth, "Please pay my tuition")
     act = money_action(resp)
@@ -44,7 +52,8 @@ def test_pay_tuition_needs_confirmation_then_completes(client, auth):
 
     r = client.post(f"/api/agent/actions/{act['action_id']}/confirm", headers=auth)
     assert r.status_code == 200 and r.json()["status"] == "CONFIRMED"
-    assert balance(client, auth, "CNY") == before - act["transaction"]["amount"]
+    assert r.json()["result"]["receipt"]["reference"].startswith("MM-")
+    assert balance(client, auth, "CNY") == pytest.approx(before - act["transaction"]["amount"], abs=0.01)
     invoices = client.get("/api/tuition/invoices", headers=auth).json()
     assert invoices[0]["status"] == "PAID"
 
@@ -96,6 +105,7 @@ def test_prompt_injection_in_invoice_cannot_approve_payment(client, auth):
 
 
 def test_actions_cannot_be_confirmed_by_another_user(client, auth):
+    fund_tuition(client, auth)
     act = money_action(chat(client, auth, "pay my tuition"))
     other = client.post("/api/auth/register", json={"username": "intruder01", "password": "Intruder#2026",
                                                     "full_name": "Intruder"}).json()["access_token"]

@@ -1,6 +1,6 @@
 """Direct (non-chat) API for the app screens. Same payment pipeline and policy as the agent."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models import Payee, Transaction, TuitionInvoice, User
-from app.services import payments, sandbox, verification
+from app.services import payments, receipts, reminders, sandbox, verification
+from app.services.agent.second_opinion import analyze_with_second_opinion
 
 router = APIRouter(tags=["finance"])
 
@@ -67,8 +68,9 @@ class VerifyIn(BaseModel):
 @router.get("/wallet")
 def wallet(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     bals = sandbox.balances(db, user.id)
+    fx = sandbox.rates_info()
     return {"balances": bals, "total_usd": round(sum(b["usd_equivalent"] for b in bals), 2),
-            "rates": sandbox.USD_RATES, "rates_as_of": sandbox.RATES_AS_OF}
+            "rates": fx["rates"], "rates_as_of": fx["as_of"], "rates_source": fx["source"]}
 
 
 @router.post("/wallet/convert")
@@ -113,6 +115,13 @@ def invoices(user: User = Depends(get_current_user), db: Session = Depends(get_d
     return out
 
 
+@router.get("/tuition/reminders")
+def tuition_reminders(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    result = reminders.tuition_reminders(db, user)
+    db.commit()
+    return result
+
+
 @router.post("/tuition/pay")
 def pay_tuition(body: TuitionIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return _guard(lambda: payments.pay_tuition(db, user, session_id="ui", initiated_by="USER",
@@ -122,8 +131,9 @@ def pay_tuition(body: TuitionIn, user: User = Depends(get_current_user), db: Ses
 @router.post("/remittance/compare")
 def compare(body: CompareIn, user: User = Depends(get_current_user)):
     try:
+        fx = sandbox.rates_info()
         return {"options": sandbox.compare(body.amount, body.from_currency.upper(), body.to_currency.upper()),
-                "rates_as_of": sandbox.RATES_AS_OF}
+                "rates_as_of": fx["as_of"], "rates_source": fx["source"]}
     except sandbox.SandboxError as e:
         raise HTTPException(400, str(e))
 
@@ -136,9 +146,36 @@ def send(body: RemitIn, user: User = Depends(get_current_user), db: Session = De
 
 @router.post("/scam-check")
 def scam_check(body: TextIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return verification.analyze_request(db, body.text)
+    return analyze_with_second_opinion(db, body.text)
 
 
-@router.get("/credit/passport")
-def passport(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return payments.credit_passport(db, user)
+def _own_tx(db: Session, user: User, tx_id: int) -> Transaction:
+    tx = db.get(Transaction, tx_id)
+    if tx is None or tx.user_id != user.id:
+        raise HTTPException(404, "Transaction not found")
+    return tx
+
+
+@router.get("/transactions/{tx_id}/receipt")
+def receipt(tx_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        return receipts.build(db, _own_tx(db, user, tx_id))
+    except receipts.ReceiptError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/transactions/{tx_id}/receipt.pdf")
+def receipt_pdf(tx_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    tx = _own_tx(db, user, tx_id)
+    try:
+        content = receipts.pdf(db, tx)
+    except receipts.ReceiptError as e:
+        raise HTTPException(400, str(e))
+    return Response(content, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{receipts.reference(tx)}.pdf"'})
+
+
+@router.get("/receipts/verify")
+def verify_receipt(reference: str, code: str, db: Session = Depends(get_db)):
+    """Public: lets a landlord, university or visa office check a receipt without logging in."""
+    return receipts.verify(db, reference, code)

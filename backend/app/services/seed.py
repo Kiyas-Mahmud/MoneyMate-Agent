@@ -60,7 +60,7 @@ def provision_student(db: Session, user: User, with_history: bool):
         user.student_id = user.student_id or f"S{2026}{user.id:05d}"
 
     home, study = user.home_currency, user.study_currency
-    for cur, amt in {home: 250_000 if home == "BDT" else 2_000, study: 38_000 if study == "CNY" else 6_000,
+    for cur, amt in {home: 250_000 if home == "BDT" else 2_000, study: 18_000 if study == "CNY" else 3_000,
                      "USD": 300}.items():
         if not sandbox.get_wallet(db, user.id, cur):
             db.add(Wallet(user_id=user.id, currency=cur, balance=float(amt)))
@@ -79,7 +79,8 @@ def provision_student(db: Session, user: User, with_history: bool):
 
     if uni:
         db.add(TuitionInvoice(user_id=user.id, payee_id=uni.id, semester="Spring 2027",
-                              amount=26_000.0 if study == "CNY" else 9_500.0, currency=study, due_date="2026-11-05"))
+                              amount=26_000.0 if study == "CNY" else 9_500.0, currency=study,
+                              due_date=(datetime.now().date() + timedelta(days=6)).isoformat()))  # local date, like reminders
 
     if not with_history:
         return
