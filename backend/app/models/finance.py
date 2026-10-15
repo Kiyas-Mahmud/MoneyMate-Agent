@@ -54,6 +54,7 @@ class TuitionInvoice(Base):
     due_date: Mapped[str] = mapped_column(String(10))
     status: Mapped[str] = mapped_column(String(12), default="OPEN")  # OPEN | PAID
     transaction_id: Mapped[int | None] = mapped_column(ForeignKey("transactions.id"))
+    last_reminder_stage: Mapped[str | None] = mapped_column(String(20))
 
 
 class Transaction(Base):

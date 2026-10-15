@@ -63,12 +63,19 @@ def respond(db: Session, user: User, session_id: str, message: str, actions: lis
     if long_paste or re.search(r"\b(is this (real|legit|a scam|safe)|scam\??|check this)\b", low):
         body = re.sub(r"^.*?(is this (real|legit|a scam|safe)\??|check this:?)", "", text, flags=re.I | re.S).strip() or text
         r = call("analyze_payment_request", text=body)
-        flags = "; ".join(f["explanation"] for f in r.get("red_flags", [])) or "no red flags found"
+        flags = "; ".join(f["explanation"] for f in r.get("red_flags", [])) or "no rule-based red flags found"
         verdict = {"LIKELY_SCAM": "This looks like a SCAM.", "CAUTION": "Be careful with this request.",
                    "NO_RED_FLAGS_FOUND": "I found no red flags."}[r["verdict"]]
         pv = r.get("payee_verification", {})
         tail = f" Payee check: {pv.get('status')}." if pv.get("status") else ""
-        return f"{verdict} {flags}.{tail} Do not pay until it is verified with your university's official portal."
+        op = r.get("second_opinion", {})
+        ai = f" AI second opinion: {op['explanation']}" if op.get("available") else ""
+        return (f"{verdict} {flags}.{tail}{ai} Do not pay until it is verified with your university's "
+                f"official portal.")
+
+    if re.search(r"\b(deadline|due|remind\w*)\b", low):
+        r = call("get_tuition_reminders")
+        return " ".join(x["message"] for x in r.get("reminders", [])) or "You have no open tuition invoices."
 
     if re.search(r"\b(tuition|semester fee|course fee|university fee)\b", low):
         amount, cur = _amount(text)
@@ -104,15 +111,21 @@ def respond(db: Session, user: User, session_id: str, message: str, actions: lis
         r = call("get_wallet_balances")
         return "Your balances: " + ", ".join(f"{b['balance']:,.2f} {b['currency']}" for b in r["balances"]) + "."
 
-    if re.search(r"\b(passport|credit|history report)\b", low):
-        r = call("get_credit_passport")
-        return (f"Financial Passport: {r.get('on_time_payments', 0)} on-time payments over "
-                f"{r.get('months_of_history', 0)} months, reliability {r.get('reliability_score')}.")
+    if re.search(r"\b(receipt|proof)\b", low):
+        m = re.search(r"(?:transaction|tx|#)\s*#?(\d+)", low)
+        r = call("get_payment_receipt", transaction_id=int(m.group(1)) if m else None)
+        if r["status"] == "ERROR":
+            return _status_line(r)
+        rc = r["receipt"]
+        return (f"Receipt {rc['reference']}: {rc['type']} of {rc['amount']:,.2f} {rc['currency']} to "
+                f"{rc['counterparty']} on {rc['executed_at'][:10]}. Verification code {rc['verification_code']}. "
+                f"Download the PDF from {r['pdf_path']}.")
 
     if re.search(r"\b(transactions|history|recent)\b", low):
         r = call("get_recent_transactions", limit=5)
         return "Recent: " + "; ".join(f"{t['kind']} {t['amount']:,.0f} {t['currency']} ({t['status']})"
                                       for t in r["transactions"]) + "."
 
-    return ("I can pay your tuition, send money home, compare transfer fees, convert currencies, or check if a "
-            "payment request is a scam. Try: \"pay my tuition\" or \"send 2000 CNY to mother\".")
+    return ("I can pay your tuition, remind you of deadlines, send money home, compare transfer fees, convert "
+            "currencies, give payment receipts, or check if a payment request is a scam. Try: \"pay my tuition\" "
+            "or \"send 2000 CNY to mother\".")

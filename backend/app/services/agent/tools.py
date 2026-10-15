@@ -4,7 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import AgentAction, Payee, Transaction, User
-from app.services import audit, payments, sandbox, verification
+from app.services import audit, payments, receipts, reminders, sandbox, verification
+from app.services.agent.second_opinion import analyze_with_second_opinion
 
 STR, NUM = {"type": "string"}, {"type": "number"}
 
@@ -33,9 +34,14 @@ DECLARATIONS = [
      "parameters": _obj({"text": STR}, ["text"])},
     {"name": "get_recent_transactions", "description": "Recent transactions with their risk decisions.",
      "parameters": _obj({"limit": {"type": "integer"}})},
-    {"name": "get_credit_passport",
-     "description": "The student's verified payment-history report (Financial Passport) for landlords or banks.",
+    {"name": "get_tuition_reminders",
+     "description": ("Upcoming tuition deadlines: days left, whether the wallet covers each invoice, and what "
+                     "converting from the home currency would cost if not."),
      "parameters": _obj({})},
+    {"name": "get_payment_receipt",
+     "description": ("Payment proof for a completed transaction: reference number, details and a verification code "
+                     "anyone can check. Without transaction_id, returns the most recent completed payment."),
+     "parameters": _obj({"transaction_id": {"type": "integer"}})},
     {"name": "pay_tuition",
      "description": ("Pay tuition. With no payee, pays the student's registered university. If the student pasted an "
                      "invoice or message, pass it as request_text so it is checked. The policy engine decides whether it "
@@ -77,14 +83,16 @@ def run_tool(db: Session, user: User, session_id: str, name: str, args: dict) ->
             return fn(db, user, session_id=session_id, initiated_by="AGENT", **args)
 
         if name == "get_wallet_balances":
-            result = {"balances": sandbox.balances(db, user.id), "rates_as_of": sandbox.RATES_AS_OF}
+            fx = sandbox.rates_info()
+            result = {"balances": sandbox.balances(db, user.id), "rates_as_of": fx["as_of"], "rates_source": fx["source"]}
             summary = "Checked wallet balances"
         elif name == "get_fx_quote":
             result = sandbox.quote(float(args["amount"]), args["from_currency"].upper(), args["to_currency"].upper())
             summary = f"FX quote {args['amount']} {args['from_currency']} -> {args['to_currency']}"
         elif name == "compare_remittance_providers":
             result = {"options": sandbox.compare(float(args["amount"]), args["from_currency"].upper(),
-                                                 args["to_currency"].upper()), "rates_as_of": sandbox.RATES_AS_OF}
+                                                 args["to_currency"].upper()),
+                      "rates_as_of": sandbox.rates_info()["as_of"], "rates_source": sandbox.rates_info()["source"]}
             summary = f"Compared providers for {args['amount']} {args['from_currency']}"
         elif name == "list_recipients":
             mine = db.scalars(select(Payee).where(Payee.owner_user_id == user.id)).all()
@@ -97,20 +105,31 @@ def run_tool(db: Session, user: User, session_id: str, name: str, args: dict) ->
             result = verification.verify_payee(db, args.get("name"), args.get("account_ref"))
             summary = f"Verified payee: {result['status']}"
         elif name == "analyze_payment_request":
-            result = verification.analyze_request(db, args["text"])
+            result = analyze_with_second_opinion(db, args["text"])
             summary = f"Analysed payment request: {result['verdict']}"
         elif name == "get_recent_transactions":
             rows = db.scalars(select(Transaction).where(Transaction.user_id == user.id)
                               .order_by(Transaction.created_at.desc()).limit(int(args.get("limit", 8)))).all()
             result = {"transactions": [payments.tx_view(t) for t in rows]}
             summary = "Listed recent transactions"
-        elif name == "get_credit_passport":
-            result = payments.credit_passport(db, user)
-            summary = "Generated Financial Passport"
+        elif name == "get_tuition_reminders":
+            result = {"reminders": reminders.tuition_reminders(db, user)}
+            summary = "Checked tuition deadlines"
+        elif name == "get_payment_receipt":
+            q = select(Transaction).where(Transaction.user_id == user.id, Transaction.status == "COMPLETED")
+            if args.get("transaction_id"):
+                q = q.where(Transaction.id == int(args["transaction_id"]))
+            else:
+                q = q.where(Transaction.direction == "OUT")
+            tx = db.scalar(q.order_by(Transaction.executed_at.desc(), Transaction.id.desc()).limit(1))
+            if tx is None:
+                return {"status": "ERROR", "error": "No completed transaction found"}
+            result = {"receipt": receipts.build(db, tx), "pdf_path": f"/api/transactions/{tx.id}/receipt.pdf"}
+            summary = f"Issued receipt {result['receipt']['reference']}"
         else:
             return {"status": "ERROR", "error": f"Unknown tool {name}"}
         result = {"status": "READ", **result}
         result["action_id"] = _record_read(db, user, session_id, name, args, summary, result)
         return result
-    except (payments.PaymentError, sandbox.SandboxError, KeyError, ValueError) as e:
+    except (payments.PaymentError, sandbox.SandboxError, receipts.ReceiptError, KeyError, ValueError) as e:
         return {"status": "ERROR", "error": str(e) if not isinstance(e, KeyError) else f"Missing argument {e}"}

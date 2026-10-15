@@ -6,6 +6,7 @@ import pytest
 _db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 os.environ["DATABASE_URL"] = f"sqlite:///{_db.name}"
 os.environ["GEMINI_API_KEY"] = ""  # tests use the deterministic agent path
+os.environ["FX_LIVE"] = "false"   # no network in tests; live FX is tested with a mocked HTTP call
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-not-for-production")
 
 from fastapi.testclient import TestClient  # noqa: E402

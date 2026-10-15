@@ -6,7 +6,8 @@ hybrid ML fraud guard and permission tiers that decide what the agent may do on 
 Built for the 2026 Shenzhen International FinTech Competition (FinTechathon), International Track,
 **Topic C: Cross-border & Student Finance Assistant**. Theme: *AI as a Financial Participant*.
 
-> Sandbox: accounts, balances, FX rates and remittance providers are simulated. No real money moves.
+> Sandbox: accounts, balances and remittance providers are simulated; exchange rates are live mid-market
+> rates. No real money moves. Full feature list with the real-world problem behind each: [docs/FEATURES.md](docs/FEATURES.md).
 
 ## What the agent does
 
@@ -15,9 +16,10 @@ Built for the 2026 Shenzhen International FinTech Competition (FinTechathon), In
 | **Tuition payments** | "Pay my tuition" → finds the open invoice, verifies the payee against the official university registry, scores risk, asks the student to confirm. Fake agents, "discounts" and look-alike accounts are blocked. |
 | **Remittances** | "Send 2000 CNY to mother" → compares providers (fee + FX margin), picks the cheapest, scores risk. Small payments to known family run automatically; new or risky recipients need confirmation. |
 | **Money-mule shield** | Money received from a first-time sender and quickly forwarded to a new payee is blocked before the student becomes a mule. |
-| **Multi-currency management** | BDT / CNY / USD wallets, conversion, tuition FX planner (preview). |
-| **Scam check** | Paste any invoice, email or message: red flags (urgency, discounts, threats, crypto / gift cards, secrecy, impersonated accounts) are explained. |
-| **Credit building** | Financial Passport: a verified payment-history report for landlords and banks (preview). |
+| **Tuition deadline reminders** | Warns 14, 7 and 3 days before the due date (and when overdue), shows whether the wallet covers the invoice and what converting from the home currency costs today. |
+| **Multi-currency management** | BDT / CNY / USD wallets and conversion at live mid-market rates (ExchangeRate-API, hourly; snapshot fallback). |
+| **Scam check** | Paste any invoice, email or message: rule-based red flags (urgency, discounts, threats, crypto / gift cards, secrecy, impersonated accounts) plus a Gemini second opinion that can raise, never lower, the warning. |
+| **Payment proof** | Every completed payment gets a receipt (reference, details, PDF) with an HMAC verification code that anyone can check at a public link; any change to the payment invalidates it. |
 
 ## How a request is handled
 
@@ -25,7 +27,7 @@ Built for the 2026 Shenzhen International FinTech Competition (FinTechathon), In
 Client (app / API) ──► AI agent (Gemini function calling, or offline intent parser)
               │ proposes a tool call
               ▼
-         Tool layer ──► read tools (T0): balances, quotes, verification, scam check
+         Tool layer ──► read tools (T0): balances, quotes, verification, scam check, reminders, receipts
               │
               ▼ money tools
      Behavioural features (20) ──► Hybrid risk model ──► Policy engine (tiers)
@@ -99,10 +101,12 @@ python -m ml.train_hybrid
 cd backend && python -m pytest -q
 ```
 
-12 end-to-end scenarios: tuition with confirmation, fake-invoice impersonation block, auto-executed
+31 tests. End-to-end scenarios: tuition with confirmation, fake-invoice impersonation block, auto-executed
 family remittance, crypto-to-stranger block, money-mule block, prompt injection in a pasted invoice,
 cross-user confirmation attempt, confirming a blocked action, provider ranking, audit-chain tamper
-detection, and authentication.
+detection, authentication. Feature tests: reminder stages and shortfall, reminder logged once, receipt
+verification and tamper detection, receipt PDF and access control, live FX with offline fallback, and the
+Gemini second opinion (escalates, never downgrades, falls back on errors) with a mocked model.
 
 ## Project layout
 
@@ -113,22 +117,26 @@ backend/
     models/          users, wallets, payees, invoices, transactions, agent actions, audit log
     routes/          REST API (auth, finance, agent, audit / model card / sandbox)
     services/
-      agent/         Gemini orchestrator, tool definitions, offline intent parser
+      agent/         Gemini orchestrator, tools, offline intent parser, scam second opinion
       risk/          feature builder, hybrid scorer, live engine with explanations
       policy.py      permission tiers
       payments.py    tuition / remittance / FX pipeline
       verification.py payee registry check + scam red flags
+      reminders.py   tuition deadline reminders
+      receipts.py    payment receipts, HMAC verification codes, PDF
       audit.py       hash-chained audit log
-      sandbox.py     simulated wallets, FX rates, providers
+      sandbox.py     simulated wallets and providers, live FX rates with fallback
   ml/                synthetic data generator, training pipeline, model artifact
   tests/             end-to-end scenarios
-docs/                technical documentation, security self-assessment
+docs/                features, technical documentation, security self-assessment
 ```
 
 ## Scope and honesty notes
 
 - Payments are simulated. Production would call licensed partners (banks, payment institutions);
   MoneyMate never holds funds.
-- FX rates and provider prices are a dated sandbox snapshot, not live quotes.
+- Exchange rates are live mid-market rates (ExchangeRate-API open access, attribution required); provider
+  fees and margins are fictional.
 - The deployed model is trained on synthetic data (see above).
-- The Financial Passport (`GET /api/credit/passport`) is a preview feature.
+- The Gemini second opinion sends the pasted message text to Google's Gemini API; leave `GEMINI_API_KEY`
+  empty to keep everything local.

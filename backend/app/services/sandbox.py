@@ -1,18 +1,65 @@
 """
-Sandbox money layer. Balances, FX rates and remittance providers are simulated; nothing here
-touches a real bank. In production this module is replaced by licensed partner APIs.
+Sandbox money layer. Balances and remittance providers are simulated; nothing here touches a real
+bank. Mid-market FX rates are live (ExchangeRate-API open access, refreshed hourly) with a dated
+snapshot as fallback. In production this module is replaced by licensed partner APIs.
 """
 
+import logging
+import threading
+import time
 from datetime import datetime, timezone
 
+import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models import Transaction, Wallet
 
-# Sandbox mid-market rates: units of currency per 1 USD (snapshot, not live)
-USD_RATES = {"USD": 1.0, "BDT": 122.0, "CNY": 7.12, "CAD": 1.38, "GBP": 0.75, "MYR": 4.22, "EUR": 0.86}
-RATES_AS_OF = "2026-10-15 (sandbox snapshot)"
+log = logging.getLogger(__name__)
+
+# Fallback mid-market rates: units of currency per 1 USD
+SANDBOX_RATES = {"USD": 1.0, "BDT": 122.0, "CNY": 7.12, "CAD": 1.38, "GBP": 0.75, "MYR": 4.22, "EUR": 0.86}
+SANDBOX_AS_OF = "2026-10-15 (sandbox snapshot)"
+SUPPORTED = tuple(SANDBOX_RATES)
+
+_fx = {"rates": None, "as_of": None, "fetched_at": 0.0, "failed_at": 0.0}
+_fx_lock = threading.Lock()
+RETRY_AFTER_FAILURE_S = 300
+
+
+def _fetch_live() -> tuple[dict, str]:
+    r = httpx.get(settings.FX_API_URL, timeout=4.0)
+    r.raise_for_status()
+    data = r.json()
+    if data.get("result") != "success":
+        raise ValueError(f"FX API returned {data.get('result')}")
+    live = {c: float(data["rates"][c]) for c in SUPPORTED}
+    return live, data.get("time_last_update_utc", "")
+
+
+def rates_info() -> dict:
+    """Current mid-market rates (per 1 USD) with their source and timestamp."""
+    now = time.monotonic()
+    if settings.FX_LIVE:
+        with _fx_lock:
+            fresh = _fx["rates"] and now - _fx["fetched_at"] < settings.FX_CACHE_SECONDS
+            may_retry = now - _fx["failed_at"] > RETRY_AFTER_FAILURE_S or not _fx["failed_at"]
+            if not fresh and may_retry:
+                try:
+                    _fx["rates"], _fx["as_of"] = _fetch_live()
+                    _fx["fetched_at"] = now
+                except Exception as e:  # network down, API changed, missing currency -> fall back
+                    _fx["failed_at"] = now
+                    log.warning("Live FX unavailable, using snapshot or last good rates: %s", e)
+            if _fx["rates"]:
+                return {"rates": dict(_fx["rates"]), "as_of": _fx["as_of"],
+                        "source": "live mid-market rates by ExchangeRate-API (exchangerate-api.com)"}
+    return {"rates": dict(SANDBOX_RATES), "as_of": SANDBOX_AS_OF, "source": "sandbox snapshot (live rates unavailable)"}
+
+
+def usd_rates() -> dict:
+    return rates_info()["rates"]
 
 # Fictional providers modelled on typical market pricing: flat fee (USD) + FX margin over mid-market
 PROVIDERS = [
@@ -30,23 +77,24 @@ class SandboxError(ValueError):
 
 def check_currency(code: str) -> str:
     code = (code or "").upper()
-    if code not in USD_RATES:
-        raise SandboxError(f"Unsupported currency '{code}'. Supported: {', '.join(USD_RATES)}")
+    if code not in SUPPORTED:
+        raise SandboxError(f"Unsupported currency '{code}'. Supported: {', '.join(SUPPORTED)}")
     return code
 
 
 def to_usd(amount: float, currency: str) -> float:
-    return amount / USD_RATES[check_currency(currency)]
+    return amount / usd_rates()[check_currency(currency)]
 
 
 def mid_rate(src: str, dst: str) -> float:
-    return USD_RATES[check_currency(dst)] / USD_RATES[check_currency(src)]
+    r = usd_rates()
+    return r[check_currency(dst)] / r[check_currency(src)]
 
 
 def quote(amount: float, src: str, dst: str, provider_id: str = "remitlite") -> dict:
     """Quote for sending `amount` in `src`, received in `dst`. Fee is charged in `src`."""
     p = PROVIDER_BY_ID[provider_id]
-    fee_src = p["fee_usd"] * USD_RATES[check_currency(src)]
+    fee_src = p["fee_usd"] * usd_rates()[check_currency(src)]
     rate = mid_rate(src, dst) * (1 - p["fx_margin"])
     received = max(amount - fee_src, 0) * rate
     ideal = amount * mid_rate(src, dst)
