@@ -1,0 +1,23 @@
+# secrets
+.env
+*.env.local
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+backend/*.db
+backend/ml/data/
+# node / nuxt
+node_modules/
+frontend/.nuxt/
+frontend/.output/
+frontend/.data/
+frontend/dist/
+# os / editors
+.DS_Store
+.vscode/
+.idea/
+
+# UI is not part of this repository
+frontend/
