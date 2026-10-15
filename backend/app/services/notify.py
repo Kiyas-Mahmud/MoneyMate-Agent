@@ -1,6 +1,7 @@
-"""In-app notifications, with best-effort push to the student's phones through the Expo push service."""
+"""In-app notifications, with best-effort push to the student's Android phones through Firebase Cloud Messaging."""
 
 import logging
+import threading
 
 import httpx
 from sqlalchemy import select
@@ -10,6 +11,9 @@ from app.core.config import settings
 from app.models import Device, Notification
 
 log = logging.getLogger(__name__)
+FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
+_creds = None
+_creds_lock = threading.Lock()
 
 
 def notify(db: Session, user_id: int, *, kind: str, title: str, body: str, action_id: int | None = None,
@@ -22,14 +26,41 @@ def notify(db: Session, user_id: int, *, kind: str, title: str, body: str, actio
     return n
 
 
+def _fcm_token() -> str:
+    """OAuth2 access token for the FCM HTTP v1 API, from the Firebase service-account file."""
+    global _creds
+    from google.auth.transport.requests import Request
+    from google.oauth2 import service_account
+
+    with _creds_lock:
+        if _creds is None:
+            _creds = service_account.Credentials.from_service_account_file(settings.FCM_SERVICE_ACCOUNT_FILE,
+                                                                           scopes=[FCM_SCOPE])
+        if not _creds.valid:
+            _creds.refresh(Request())
+        return _creds.token
+
+
+def fcm_message(token: str, n: Notification) -> dict:
+    # Payment requests use a high-priority channel so the "verify" prompt shows as a heads-up notification.
+    channel = "payments" if n.kind in ("VERIFY_PAYMENT", "PAYMENT_BLOCKED", "MULE_ALERT") else "updates"
+    return {"message": {
+        "token": token,
+        "notification": {"title": n.title, "body": n.body},
+        "data": {"notification_id": str(n.id), "kind": n.kind, "action_id": str(n.action_id or "")},
+        "android": {"priority": "high", "notification": {"channel_id": channel, "click_action": "OPEN_MONEYMATE"}},
+    }}
+
+
 def _push(db: Session, user_id: int, n: Notification):
     tokens = [d.push_token for d in db.scalars(select(Device).where(Device.user_id == user_id)).all() if d.push_token]
-    if not tokens:
+    if not tokens or not settings.FCM_PROJECT_ID:
         return
-    messages = [{"to": t, "title": n.title, "body": n.body, "sound": "default",
-                 "data": {"notification_id": n.id, "kind": n.kind, "action_id": n.action_id}} for t in tokens]
+    url = f"https://fcm.googleapis.com/v1/projects/{settings.FCM_PROJECT_ID}/messages:send"
     try:
-        httpx.post(settings.EXPO_PUSH_URL, json=messages, timeout=5.0)
+        headers = {"Authorization": f"Bearer {_fcm_token()}"}
+        for t in tokens:
+            httpx.post(url, json=fcm_message(t, n), headers=headers, timeout=5.0)
     except Exception as e:  # push is best effort; the in-app notification is the source of truth
         log.warning("Push delivery failed: %s", e)
 

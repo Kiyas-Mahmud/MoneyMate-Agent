@@ -3,7 +3,7 @@ Permission tiers: what the agent may do on its own.
 
 T0  READ    look-ups, quotes, checks, planning           -> runs immediately
 T2  VERIFY  every movement of money (payment, transfer,  -> the agent prepares it and the student must
-            conversion, scheduled payment)                  verify on their phone (Face ID / fingerprint)
+            conversion, scheduled payment)                  verify on their phone (fingerprint / face)
 T3  BLOCK   high risk, impersonation, mule pattern, ...  -> refused, with reasons
 
 There is deliberately no auto-execute tier: the agent never moves money without the student's

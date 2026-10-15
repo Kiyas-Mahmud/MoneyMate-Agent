@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     MODEL_BUNDLE_PATH: str = str(BACKEND_DIR / "ml" / "artifacts" / "hybrid_risk_model.joblib")
 
     # Verification: no money ever moves without the student's verification.
-    # "device": the phone signs a one-time challenge with a key unlocked by Face ID / fingerprint.
+    # "device": the Android phone signs a one-time challenge with a Keystore key unlocked by fingerprint / face.
     # "sandbox": accepts {"sandbox": true} instead of a signature (demos through the API docs only).
     VERIFICATION_MODE: str = "device"
     CONFIRMATION_TTL_MINUTES: int = 15          # payments the student starts
@@ -42,9 +42,10 @@ class Settings(BaseSettings):
     # Daily monitor (deadlines, standing instructions, incoming money, low balance)
     MONITOR_ENABLED: bool = True
     MONITOR_HOUR: int = 8                       # local server time
-    # Push notifications through the Expo push service (mobile app); off by default
+    # Push notifications to Android through Firebase Cloud Messaging (HTTP v1); off by default
     PUSH_ENABLED: bool = False
-    EXPO_PUSH_URL: str = "https://exp.host/--/api/v2/push/send"
+    FCM_PROJECT_ID: str = ""
+    FCM_SERVICE_ACCOUNT_FILE: str = ""  # path to the Firebase service-account JSON (never commit it)
 
     DEMO_USER_PASSWORD: str = "Demo@2026"
 

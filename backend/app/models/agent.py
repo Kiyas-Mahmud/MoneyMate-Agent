@@ -57,15 +57,16 @@ class AuditLog(Base):
 
 
 class Device(Base):
-    """A student's phone. Its private key never leaves the device and is unlocked by Face ID / fingerprint."""
+    """A student's Android phone. Its private key never leaves the Keystore and is unlocked by fingerprint / face."""
 
     __tablename__ = "devices"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     name: Mapped[str] = mapped_column(String(80))
-    public_key: Mapped[str] = mapped_column(String(120))  # base64 Ed25519 public key (32 bytes)
-    push_token: Mapped[str | None] = mapped_column(String(200))
+    key_type: Mapped[str] = mapped_column(String(10), default="p256")  # p256 (Android Keystore) | ed25519
+    public_key: Mapped[str] = mapped_column(String(200))  # base64 SubjectPublicKeyInfo (p256) or 32 raw bytes
+    push_token: Mapped[str | None] = mapped_column(String(300))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

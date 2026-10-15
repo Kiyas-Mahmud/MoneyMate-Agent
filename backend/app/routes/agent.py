@@ -51,7 +51,7 @@ class VerifyIn(BaseModel):
 
 @router.get("/actions/{action_id}/challenge")
 def challenge(action_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """The one-time text the phone signs after Face ID / fingerprint."""
+    """The one-time text the phone signs after fingerprint / face unlock (Android BiometricPrompt)."""
     try:
         return payments.challenge(db, user, action_id)
     except payments.PaymentError as e:

@@ -12,6 +12,8 @@ os.environ["MONITOR_ENABLED"] = "false"  # the monitor is run explicitly in test
 os.environ["VERIFICATION_MODE"] = "device"
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-not-for-production")
 
+from cryptography.hazmat.primitives import hashes  # noqa: E402
+from cryptography.hazmat.primitives.asymmetric import ec  # noqa: E402
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: E402
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -37,16 +39,21 @@ def auth(client):
 
 
 class Phone:
-    """Simulates the student's phone: a key pair whose private half would sit behind Face ID."""
+    """A test client with an Ed25519 key (accepted for test tools; Android phones use P-256)."""
+
+    key_type = "ed25519"
 
     def __init__(self, client, headers):
         self.client, self.headers = client, headers
-        self.key = Ed25519PrivateKey.generate()
-        pub = self.key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+        self.key, pub = self._make_key()
         r = client.post("/api/devices", headers=headers,
-                        json={"name": "Test phone", "public_key": base64.b64encode(pub).decode()})
+                        json={"name": "Test phone", "key_type": self.key_type, "public_key": base64.b64encode(pub).decode()})
         assert r.status_code == 201, r.text
         self.device_id = r.json()["id"]
+
+    def _make_key(self):
+        k = Ed25519PrivateKey.generate()
+        return k, k.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
 
     def sign(self, text: str) -> str:
         return base64.b64encode(self.key.sign(text.encode())).decode()
@@ -58,6 +65,24 @@ class Phone:
                                 json={"device_id": self.device_id, "signature": self.sign(ch.json()["challenge"])})
 
 
+class AndroidPhone(Phone):
+    """Simulates an Android Keystore key: P-256, public key as SubjectPublicKeyInfo, SHA256withECDSA (DER)."""
+
+    key_type = "p256"
+
+    def _make_key(self):
+        k = ec.generate_private_key(ec.SECP256R1())
+        return k, k.public_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
+
+    def sign(self, text: str) -> str:
+        return base64.b64encode(self.key.sign(text.encode(), ec.ECDSA(hashes.SHA256()))).decode()
+
+
 @pytest.fixture()
 def phone(client, auth):
     return Phone(client, auth)
+
+
+@pytest.fixture()
+def android(client, auth):
+    return AndroidPhone(client, auth)

@@ -48,7 +48,7 @@ payments, suspicious incoming money and low balances, and prepares scheduled pay
 
 ```mermaid
 flowchart TD
-    S([Student]) --> UI["Client app<br/>(any web or mobile UI)"]
+    S([Student]) --> UI["Android app<br/>(Flutter + Kotlin Keystore channel)"]
     UI -- "REST + JWT bearer" --> API["FastAPI backend<br/>/api/auth, /api/agent, finance, system routes"]
 
     API --> ORCH["Agent orchestrator<br/>orchestrator.py"]
@@ -71,8 +71,8 @@ flowchart TD
     VER --> POL
     RISK --> POL["Policy engine policy.py<br/>T2 verify / T3 block<br/>(no auto-execute tier)"]
 
-    POL -- "T2: AWAITING_VERIFICATION<br/>one-time nonce, 15 min (24 h scheduled)" --> NOTE["Notification<br/>notify.py: Verify to complete your payment<br/>(optional Expo push)"]
-    NOTE --> CONF["Phone: Face ID / fingerprint signs<br/>moneymate-verify:{id}:{nonce}<br/>POST /api/agent/actions/{id}/verify"]
+    POL -- "T2: AWAITING_VERIFICATION<br/>one-time nonce, 15 min (24 h scheduled)" --> NOTE["Notification<br/>notify.py: Verify to complete your payment<br/>(optional FCM HTTP v1 push)"]
+    NOTE --> CONF["Android phone: BiometricPrompt unlocks the<br/>Keystore P-256 key, which signs<br/>moneymate-verify:{id}:{nonce}<br/>POST /api/agent/actions/{id}/verify"]
     CONF -- "signature checked<br/>devices.py" --> LEDGER[("Sandbox ledger<br/>wallets, transactions")]
     POL -- "T3" --> BLK["BLOCKED with reasons"]
     LEDGER -- "COMPLETED" --> RCPT["Receipt with HMAC-SHA256<br/>verification code<br/>receipts.py"]
@@ -87,7 +87,7 @@ flowchart TD
 
 | Layer | Technology | Code |
 |---|---|---|
-| Client | Any web or mobile app calling the REST API (not part of this repository); the interactive API docs at `/docs` can drive every flow | – |
+| Client | Android app (Flutter UI; a Kotlin platform channel for the Keystore key and BiometricPrompt; FCM for push), not part of this repository; integration guide in [`ANDROID_INTEGRATION.md`](ANDROID_INTEGRATION.md). The interactive API docs at `/docs` can drive every flow | – |
 | API | FastAPI, Pydantic v2 request models, CORS restricted to configured origins | `backend/app/main.py`, `backend/app/routes/` |
 | Auth | bcrypt password hashes, HS256 JWT bearer tokens (120 min) | `backend/app/core/security.py` |
 | Database | SQLAlchemy 2.0; SQLite by default, any SQLAlchemy URL via `DATABASE_URL` | `backend/app/core/database.py`, `backend/app/models/` |
@@ -96,8 +96,8 @@ flowchart TD
 | Payments | One pipeline used by the agent, the app screens and the daily monitor; verify and reject | `backend/app/services/payments.py` |
 | Risk | Feature builder, hybrid scorer, explanation engine | `backend/app/services/risk/` |
 | Policy | Permission tiers T0 read, T2 verify, T3 block (no auto-execute tier) | `backend/app/services/policy.py` |
-| Device verification | Ed25519 public-key registration, one-time challenge, signature check | `backend/app/services/devices.py`, model `Device` in `backend/app/models/agent.py` |
-| Notifications | In-app notifications, optional best-effort Expo push | `backend/app/services/notify.py`, model `Notification` |
+| Device verification | Android Keystore P-256 (ECDSA) public-key registration (Ed25519 accepted for test clients), one-time challenge, signature check | `backend/app/services/devices.py`, model `Device` in `backend/app/models/agent.py` |
+| Notifications | In-app notifications, optional best-effort push through Firebase Cloud Messaging (HTTP v1, `google-auth` service-account token) | `backend/app/services/notify.py`, model `Notification` |
 | Standing instructions | Recurring payments prepared on their due day | `backend/app/services/standing.py`, model `StandingInstruction` in `backend/app/models/finance.py` |
 | Daily monitor | Background routine (deadlines, scheduled payments, new-sender money, low balance) started with the app | `backend/app/services/monitor.py`, `backend/app/main.py` |
 | Verification | Institution registry match, impersonation check, scam red flags | `backend/app/services/verification.py` |
@@ -190,8 +190,8 @@ All tables are defined in `backend/app/models/`.
 | `transactions` | Every money movement and its risk decision | `kind` (TUITION / REMITTANCE_OUT / REMITTANCE_IN / CARD / FX), `direction`, `amount`, `amount_usd`, `counterparty_account`, `channel`, `provider`, `fee`, `fx_rate`, `status`, `risk_score`, `risk_level`, `risk_reasons`, `model_scores`, `features` (the 20-feature snapshot), `tier`, `initiated_by` |
 | `agent_actions` | Every tool call the agent makes; money actions wait here for verification | `tool`, `args` (for tuition with a shortfall, the planned conversion under `convert`), `tier`, `status` (READ / AWAITING_VERIFICATION / VERIFIED / REJECTED / BLOCKED / EXPIRED), `transaction_id`, `result`, `expires_at`, `verification_nonce` (one-time challenge, cleared after use), `decided_at` |
 | `standing_instructions` | Recurring payments | `payee_id` (a saved recipient), `amount`, `currency`, `day_of_month` (1 to 28), `note`, `active`, `last_prepared_period` (`YYYY-MM`, so a month is never prepared twice) |
-| `devices` | The student's registered phones | `name`, `public_key` (base64 Ed25519, 32 bytes), `push_token` (optional, Expo), `last_used_at` |
-| `notifications` | In-app notifications | `kind` (VERIFY_PAYMENT / PAYMENT_DONE / PAYMENT_BLOCKED / TUITION_REMINDER / MULE_ALERT / LOW_BALANCE), `title`, `body`, `action_id`, `data` (includes a de-duplication `key` for monitor alerts), `read` |
+| `devices` | The student's registered Android phones | `name`, `key_type` (`p256` by default, or `ed25519` for test clients), `public_key` (up to 200 characters: base64 X.509 SubjectPublicKeyInfo for `p256`, 32 raw bytes for `ed25519`), `push_token` (optional FCM registration token), `created_at`, `last_used_at` |
+| `notifications` | In-app notifications | `kind` (VERIFY_PAYMENT / PAYMENT_DONE / PAYMENT_BLOCKED / TUITION_REMINDER / MULE_ALERT / LOW_BALANCE / DEVICE_ADDED), `title`, `body`, `action_id`, `data` (includes a de-duplication `key` for monitor alerts), `read` |
 | `chat_messages` | Conversation history per session | `session_id`, `role`, `content`, `action_ids` |
 | `audit_log` | Append-only, hash-chained event log | `actor` (STUDENT / AGENT / SYSTEM), `event`, `tier`, `details`, `prev_hash`, `hash`, `created_at` |
 
@@ -560,9 +560,21 @@ simulates another date for demos and is refused when `ENVIRONMENT=production`.
 
 `notify.notify` stores every notification in the database; `GET /api/notifications` (optionally
 `?unread=true`), `POST /api/notifications/{id}/read` (owner only) and `POST /api/notifications/read-all`
-read and mark them. With `PUSH_ENABLED=true`, each notification is also posted to `EXPO_PUSH_URL` for every
-registered device with a push token (5-second timeout); a failed push is only logged, because the in-app
-notification is the source of truth.
+read and mark them. Registering a phone creates a `DEVICE_ADDED` notification ("New phone added … If this
+wasn't you, contact support right away").
+
+**Push (Firebase Cloud Messaging HTTP v1).** With `PUSH_ENABLED=true` and `FCM_PROJECT_ID` set, each
+notification is also sent to every registered phone of the student that has a push token, as one
+`POST https://fcm.googleapis.com/v1/projects/{FCM_PROJECT_ID}/messages:send` per token (5-second timeout).
+The bearer token is an OAuth2 access token for the `firebase.messaging` scope, obtained with `google-auth`
+from the service-account JSON at `FCM_SERVICE_ACCOUNT_FILE` and cached (refreshed when it expires). The
+message carries `notification {title, body}`, `data {notification_id, kind, action_id}` (all strings, as
+FCM requires) and `android.priority = high`; `VERIFY_PAYMENT`, `PAYMENT_BLOCKED` and `MULE_ALERT` use the
+Android channel `payments` (heads-up), everything else `updates`. Any failure (missing file, token error,
+network) is only logged, because the in-app notification is the source of truth. FCM rotates tokens; the
+app reports a new one with `POST /api/devices/{id}/push-token`. The service-account file is a secret and
+is git-ignored by the `*service-account*.json` pattern. `google-auth` is installed as a dependency of
+`google-genai`.
 
 ---
 
@@ -586,15 +598,23 @@ There is **no auto-execute tier**. The former T1 tier and its settings (`AUTO_EX
 
 ### 8.2 Device verification (`backend/app/services/devices.py`)
 
-- **Enrolment:** the phone app creates an Ed25519 key pair in secure hardware (Secure Enclave / Android
-  Keystore) protected by Face ID / fingerprint and registers only the public key with `POST /api/devices`
-  (validated as a 32-byte Ed25519 key; audited as `DEVICE_REGISTERED`). The private key never reaches the
-  server.
+- **Enrolment:** the Android app creates a P-256 (ECDSA) key pair in the Android Keystore, in StrongBox when
+  the phone has it and otherwise in the TEE, with `setUserAuthenticationRequired(true)`: each use must be
+  unlocked by BiometricPrompt (fingerprint / face unlock, `BIOMETRIC_STRONG`), and the key is invalidated
+  when a new biometric is enrolled. The app registers only the public key with `POST /api/devices`
+  (`name`, `key_type` default `p256`, `public_key` = base64 X.509 SubjectPublicKeyInfo as returned by
+  `getPublicKey().getEncoded()`, optional `push_token`). The server parses it and accepts only a P-256
+  (`SECP256R1`) key; other curves are refused with 400. `key_type: "ed25519"` (32 raw bytes) is still
+  accepted, for test clients. Registration is audited as `DEVICE_REGISTERED` (with the key type) and sends
+  the `DEVICE_ADDED` notification, which also reaches the student's other phones by push when push is on.
+  The private key never leaves the phone. Code and setup for the app side:
+  [`ANDROID_INTEGRATION.md`](ANDROID_INTEGRATION.md).
 - **Challenge:** each prepared payment gets a random one-time nonce (`secrets.token_urlsafe(24)`, stored in
   `agent_actions.verification_nonce`). `GET /api/agent/actions/{id}/challenge` returns the text
   `moneymate-verify:{action_id}:{nonce}`, the summary and the expiry.
-- **Verification:** the phone asks for Face ID / fingerprint, signs the text and calls
-  `POST /api/agent/actions/{id}/verify` with `device_id` and `signature`. The server checks that the action
+- **Verification:** the phone shows BiometricPrompt (fingerprint / face unlock), signs the text with
+  `SHA256withECDSA` and calls `POST /api/agent/actions/{id}/verify` with `device_id` and the base64 DER
+  `signature`. The server checks that the action
   belongs to the caller and is still `AWAITING_VERIFICATION`, that it has not expired (a late attempt marks
   it `EXPIRED`), that the device is registered to the same student, and that the signature matches the
   stored public key. A missing or wrong signature returns HTTP 403 and nothing moves.
@@ -638,8 +658,9 @@ Base URL `http://localhost:8000/api`. Interactive OpenAPI docs at `/docs`. All e
 | `GET /agent/actions/{id}/challenge` | The one-time text the phone signs for a prepared payment |
 | `POST /agent/actions/{id}/verify` | Complete a prepared payment: body `device_id`, `signature` (or `{"sandbox": true}` only in sandbox mode) |
 | `POST /agent/actions/{id}/reject` | Student rejects a prepared payment |
-| `POST /devices` | Register a phone: `name`, base64 Ed25519 `public_key`, optional `push_token` |
-| `GET /devices` | The student's registered phones |
+| `POST /devices` | Register a phone: `name`, `key_type` (`p256` default, or `ed25519` for test clients), base64 `public_key` (P-256 SubjectPublicKeyInfo), optional `push_token`; sends a `DEVICE_ADDED` notification |
+| `POST /devices/{id}/push-token` | Replace the phone's FCM token after rotation (owner only; 404 otherwise) |
+| `GET /devices` | The student's registered phones (with `key_type` and whether push is set up) |
 | `GET /notifications` | Notifications, newest first (`?unread=true`) |
 | `POST /notifications/{id}/read` | Mark one notification read (owner only) |
 | `POST /notifications/read-all` | Mark all read |
@@ -672,13 +693,15 @@ Base URL `http://localhost:8000/api`. Interactive OpenAPI docs at `/docs`. All e
 
 ## 10. Testing and sandbox evidence
 
-`cd backend && python -m pytest -q` runs 44 tests against a temporary SQLite database with the
+`cd backend && python -m pytest -q` runs 51 tests against a temporary SQLite database with the
 deterministic agent path, live FX switched off (`FX_LIVE=false`), no Gemini key, the background monitor
-switched off (`MONITOR_ENABLED=false`; tests run it explicitly) and `VERIFICATION_MODE=device`. A `Phone`
-test helper (`backend/tests/conftest.py`) generates a real Ed25519 key pair, registers its public key and
-signs challenges, exactly as the phone app would; the live-rate and second-opinion tests replace the
-network call with a stub. Result on 2026-10-16: **44 passed** (12 in `test_scenarios.py`, 13 in
-`test_verification.py`, 19 in `test_features.py`).
+switched off (`MONITOR_ENABLED=false`; tests run it explicitly) and `VERIFICATION_MODE=device`. Two test
+helpers in `backend/tests/conftest.py` play the phone with real keys: `AndroidPhone` generates a P-256 key,
+registers its SubjectPublicKeyInfo with `key_type: "p256"` and signs challenges with ECDSA-SHA256 (DER),
+exactly as the Android Keystore key does; `Phone` does the same with an Ed25519 test-client key and is
+used by the older tests. The live-rate, second-opinion and FCM tests replace the network call with a
+stub. Result on 2026-10-16: **51 passed** (12 in `test_scenarios.py`, 13 in `test_verification.py`, 19 in
+`test_features.py`, 7 in `test_android.py`).
 
 | Test (`backend/tests/test_scenarios.py`) | What it shows |
 |---|---|
@@ -728,15 +751,27 @@ network call with a stub. Result on 2026-10-16: **44 passed** (12 in `test_scena
 | `test_second_opinion_never_downgrades` | A (stubbed) "looks legitimate" answer cannot lower the fake invoice's LIKELY_SCAM verdict |
 | `test_second_opinion_failure_falls_back_to_rules` | A Gemini error leaves the rule result in place |
 
+| Test (`backend/tests/test_android.py`) | What it shows |
+|---|---|
+| `test_android_keystore_p256_key_verifies_payment` | A P-256 key registered as SubjectPublicKeyInfo verifies "send 400 CNY to mother": VERIFIED, CNY balance drops to 17,600 |
+| `test_p256_signature_for_other_payment_fails` | A valid P-256 signature over one payment's challenge, sent for a second payment → 403 |
+| `test_wrong_curve_is_refused` | A P-384 public key registered as `p256` → 400 |
+| `test_new_phone_triggers_alert` | Registering a phone makes `DEVICE_ADDED` the newest notification |
+| `test_push_token_can_be_rotated` | `POST /api/devices/{id}/push-token` → 200, and `GET /api/devices` reports push set up |
+| `test_fcm_push_sent_for_verify_request` | With push on (mocked access token and HTTP), a prepared payment posts a `VERIFY_PAYMENT` message to `/projects/{id}/messages:send` with the bearer token, the phone's FCM token, `action_id` as a string, `android.priority` high, channel `payments` and "complete verification" in the body |
+| `test_push_failure_does_not_break_payment` | When getting the FCM token raises, the payment is still prepared (`AWAITING_VERIFICATION`) |
+
 Not covered by a test: the exclusion of own-wallet conversions from the risk features (§4), the
-low-balance check, the background scheduler's timing, Expo push delivery, a scheduled payment the wallet
-cannot cover, and any call to the real Gemini, ExchangeRate-API or Expo services.
+low-balance check, the background scheduler's timing, a scheduled payment the wallet cannot cover, the
+Android app itself (Keystore, StrongBox, BiometricPrompt), and any call to the real Gemini,
+ExchangeRate-API or Firebase Cloud Messaging services.
 
 **Demo flow for execution evidence.** With the demo student `ayesha` (after `POST /api/sandbox/reset`),
 the same steps can be run by hand through the API docs at `/docs` or a client:
 
-0. Register a phone key (`POST /api/devices`; the README has a short script that plays the phone), or,
-   for a quick run through `/docs` only, set `VERIFICATION_MODE=sandbox`.
+0. Register a phone key with the Android app, or with `POST /api/devices` (the README has a short script
+   that plays the phone with a P-256 key), or, for a quick run through `/docs` only, set
+   `VERIFICATION_MODE=sandbox`.
 1. Ask the agent "When is my tuition due?" (or read `GET /api/tuition/reminders`): 26,000 CNY due in
    6 days, the CNY wallet is 8,000 CNY short, with the BDT amount to convert.
 2. "Pay my tuition": `AWAITING_VERIFICATION`, payee VERIFIED, a `plan` of two steps (convert BDT, then pay)
@@ -749,8 +784,8 @@ the same steps can be run by hand through the API docs at `/docs` or a client:
 5. Run `POST /api/monitor/run?day=<1st of next month>`: the monthly 1,500 CNY to the mother is prepared
    and waits for verification; a second run prepares nothing.
 
-Screens worth recording: agent chat with the reminder and the two-step plan, the phone verification
-prompt, the notification list, the receipt PDF and its verification, and Activity & Audit with chain
+Screens worth recording: agent chat with the reminder and the two-step plan, the Android
+BiometricPrompt verification, the notification list, the receipt PDF and its verification, and Activity & Audit with chain
 verification.
 
 ---
@@ -772,40 +807,45 @@ verification.
 - **The fallback parser is narrow.** It handles the demo phrasings well; free-form requests need Gemini.
 - **No re-scoring at verification.** A prepared payment keeps the risk decision it had when it was
   created (up to 15 minutes, or 24 hours for a scheduled payment).
-- **Device verification is server-side only in this repository.** The phone app that holds the key is a
-  separate client. The server cannot prove that a registered key lives in secure hardware behind
-  biometrics (no key attestation); registering a new phone needs only a valid login token; there is no
-  device removal, lost-phone or recovery flow. `VERIFICATION_MODE=sandbox` turns verification into a
-  single API call and nothing in the code stops it from being set in production.
+- **Device verification is server-side only in this repository.** The Android app that holds the key is a
+  separate client. The server does not check Android key attestation, so it cannot prove that a
+  registered key lives in the Keystore behind a biometric; registering a new phone needs only a valid
+  login token (the student now gets a `DEVICE_ADDED` notification, but there is no step-up and no limit on
+  phones); there is no device removal, lost-phone or recovery flow. `VERIFICATION_MODE=sandbox` turns
+  verification into a single API call; the server refuses to start with it when `ENVIRONMENT=production`
+  (`backend/app/core/config.py:63-64`), so the remaining risk is a deployment that does not set
+  `ENVIRONMENT`.
 - **Scheduled payments do not convert.** A scheduled payment the wallet cannot cover is not prepared and
   is not retried that month; the student gets a notification instead.
 - **The monitor is a simple in-process loop.** It runs inside the API process at server local time; with
   several worker processes it would run once per process (standing instructions are still prepared once,
   thanks to `last_prepared_period`, unless two runs race), and dates use the server's time zone.
-- **Push notifications are best effort.** In-app notifications always work; Expo push is off by default,
-  depends on a third-party service and is not retried. There is no email or SMS channel.
+- **Push notifications are best effort.** In-app notifications always work; FCM push is off by default,
+  depends on Google's Firebase service, is not retried, and sends each notification's title and body
+  through Google. There is no email or SMS channel.
 - **Receipts are only as durable as the signing key and the data.** A receipt is recomputed from the
   database, so a sandbox reset (which deletes transactions) or a change of `RECEIPT_SIGNING_KEY` /
   `JWT_SECRET_KEY` makes earlier receipts fail verification (see the security self-assessment).
 - **No database migrations.** Tables are created with `create_all`, which creates the new tables
   (`devices`, `notifications`, `standing_instructions`) but does not add new columns to an existing table;
-  a `moneymate.db` created before the `agent_actions.verification_nonce` column (or the
-  `last_reminder_stage` column) was added must be deleted and re-seeded.
-- **Prototype security posture** (tokens in browser storage, no rate limiting, device enrolment protected
-  only by the login token, SQLite by default): see the known-risk table in the security self-assessment.
+  a `moneymate.db` created before the `agent_actions.verification_nonce` column, the
+  `last_reminder_stage` column or the `devices.key_type` column was added must be deleted and re-seeded.
+- **Prototype security posture** (no rate limiting, device enrolment protected only by the login token,
+  SQLite by default): see the known-risk table in the security self-assessment.
 
 ## 12. Roadmap to the November grand final
 
 1. **Real data and partners.** Seek a pilot dataset from a university bursary or a licensed remittance
    partner; retrain and publish the model card on that data next to the synthetic results.
 2. **Re-score at verification** and on every state change while a payment waits.
-3. **Harden device verification:** key attestation (App Attest / Play Integrity), step-up and a
-   notification on the old phone when a new phone is registered, device removal and a lost-phone recovery
-   flow, refuse `VERIFICATION_MODE=sandbox` in production; **rate limiting** on login, chat, money,
-   verification and receipt-verification endpoints.
+3. **Harden device verification:** check the Android Keystore attestation certificate chain at enrolment
+   (hardware-backed key, user authentication required) plus Play Integrity, step-up (a signature from an
+   existing phone) to add a new phone, device removal and a lost-phone recovery flow; **rate limiting** on
+   login, chat, money, verification and receipt-verification endpoints.
 4. **Scheduled payments that convert** when the study-currency wallet is short (one plan, one
    verification, as for tuition), and a retry before the due day passes.
-5. **Token handling:** short-lived access tokens in memory plus an HttpOnly refresh cookie.
+5. **Token handling:** short-lived access tokens plus a refresh token kept in the Android Keystore-backed
+   secure storage, with server-side revocation.
 6. **Multilingual scam analysis** (Chinese, Bengali): add tested multilingual rules, measure the Gemini
    second opinion on labelled scam messages, and consider letting it raise (never lower) payment risk.
 7. **Provider prices and executable quotes** through licensed partner APIs (mid-market rates are already
