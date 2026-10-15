@@ -1,0 +1,75 @@
+{
+  "trained_at": "2026-10-15T18:54:50+00:00",
+  "data": "synthetic student cross-border payments (80000 rows, 7.78% fraud, 1% label noise)",
+  "split": {
+    "train": 56000,
+    "val": 12000,
+    "test": 12000
+  },
+  "thresholds": {
+    "medium": 0.1,
+    "high": 0.7
+  },
+  "base_model_test_roc_auc": {
+    "logistic_regression": 0.919,
+    "random_forest": 0.9362,
+    "xgboost": 0.938,
+    "hist_gradient_boosting": 0.9378,
+    "fnn": 0.9398,
+    "autoencoder": 0.9206
+  },
+  "meta_weights": {
+    "logistic_regression": -1.423,
+    "random_forest": 0.865,
+    "xgboost": 2.842,
+    "hist_gradient_boosting": 2.552,
+    "fnn": 4.167,
+    "autoencoder": 0.392
+  },
+  "validation_score_bands": [
+    {
+      "band": "0.0-0.1",
+      "payments": 11169,
+      "fraud_rate": 0.015
+    },
+    {
+      "band": "0.1-0.3",
+      "payments": 56,
+      "fraud_rate": 0.232
+    },
+    {
+      "band": "0.3-0.5",
+      "payments": 12,
+      "fraud_rate": 0.667
+    },
+    {
+      "band": "0.5-0.7",
+      "payments": 14,
+      "fraud_rate": 0.5
+    },
+    {
+      "band": "0.7-0.9",
+      "payments": 17,
+      "fraud_rate": 0.824
+    },
+    {
+      "band": "0.9-1.0",
+      "payments": 732,
+      "fraud_rate": 0.989
+    }
+  ],
+  "hybrid_test_at_medium": {
+    "roc_auc": 0.9373,
+    "pr_auc": 0.879,
+    "f1": 0.8762,
+    "precision": 0.9189,
+    "recall": 0.8373
+  },
+  "hybrid_test_at_high": {
+    "roc_auc": 0.9373,
+    "pr_auc": 0.879,
+    "f1": 0.8796,
+    "precision": 0.9803,
+    "recall": 0.7976
+  }
+}

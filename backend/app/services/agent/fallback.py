@@ -1,0 +1,118 @@
+"""
+Deterministic intent parser used when no LLM is available. It calls the same tools as the LLM
+agent, so payments still go through the risk engine and the permission policy.
+"""
+
+import re
+
+from sqlalchemy.orm import Session
+
+from app.models import User
+from app.services.agent.tools import run_tool
+
+CUR = r"(usd|cny|rmb|bdt|cad|gbp|myr|eur|taka|yuan|dollars?|\$|¥|৳)"
+NUM = r"([\d,]+(?:\.\d+)?)"
+ALIASES = {"rmb": "CNY", "yuan": "CNY", "¥": "CNY", "taka": "BDT", "৳": "BDT", "$": "USD", "dollar": "USD",
+           "dollars": "USD"}
+
+
+def _cur(token: str | None, default: str | None = None) -> str | None:
+    if not token:
+        return default
+    t = token.lower()
+    return ALIASES.get(t, t.upper())
+
+
+def _amount(text: str):
+    m = re.search(rf"{CUR}\s?{NUM}|{NUM}\s?{CUR}?", text, re.I)
+    if not m:
+        return None, None
+    if m.group(2):
+        return float(m.group(2).replace(",", "")), _cur(m.group(1))
+    return float(m.group(3).replace(",", "")), _cur(m.group(4))
+
+
+def _status_line(result: dict) -> str:
+    s = result.get("status")
+    if s == "ERROR":
+        return f"I couldn't do that: {result['error']}"
+    risk = result.get("risk", {})
+    risk_txt = f" Risk: {risk.get('level')} ({risk.get('score', 0):.0%})." if risk else ""
+    if s == "AUTO_EXECUTED":
+        return f"Done: {result['summary']}.{risk_txt}"
+    if s == "AWAITING_CONFIRMATION":
+        rules = "; ".join(result["policy"]["rules"])
+        return f"Ready: {result['summary']}.{risk_txt} Please confirm it on the card below ({rules})."
+    if s == "BLOCKED":
+        rules = "; ".join(result["policy"]["rules"])
+        reasons = "; ".join(r["text"] for r in risk.get("reasons", []))
+        return f"I blocked this: {result['summary']}. Why: {rules}." + (f" Signals: {reasons}." if reasons else "")
+    return ""
+
+
+def respond(db: Session, user: User, session_id: str, message: str, actions: list) -> str:
+    text = message.strip()
+    low = text.lower()
+
+    def call(tool, **args):
+        r = run_tool(db, user, session_id, tool, args)
+        actions.append({"tool": tool, **r})
+        return r
+
+    long_paste = len(text) > 140 or "\n" in text
+    if long_paste or re.search(r"\b(is this (real|legit|a scam|safe)|scam\??|check this)\b", low):
+        body = re.sub(r"^.*?(is this (real|legit|a scam|safe)\??|check this:?)", "", text, flags=re.I | re.S).strip() or text
+        r = call("analyze_payment_request", text=body)
+        flags = "; ".join(f["explanation"] for f in r.get("red_flags", [])) or "no red flags found"
+        verdict = {"LIKELY_SCAM": "This looks like a SCAM.", "CAUTION": "Be careful with this request.",
+                   "NO_RED_FLAGS_FOUND": "I found no red flags."}[r["verdict"]]
+        pv = r.get("payee_verification", {})
+        tail = f" Payee check: {pv.get('status')}." if pv.get("status") else ""
+        return f"{verdict} {flags}.{tail} Do not pay until it is verified with your university's official portal."
+
+    if re.search(r"\b(tuition|semester fee|course fee|university fee)\b", low):
+        amount, cur = _amount(text)
+        r = call("pay_tuition", amount=amount, currency=cur)
+        return _status_line(r)
+
+    if re.search(r"\b(convert|exchange)\b", low):
+        m = re.search(rf"{NUM}\s?{CUR}\s+(?:to|into)\s+{CUR}", low, re.I)
+        if m:
+            r = call("convert_currency", amount=float(m.group(1).replace(",", "")), from_currency=_cur(m.group(2)),
+                     to_currency=_cur(m.group(3)))
+            return _status_line(r) if r["status"] == "ERROR" else f"Done: {r['summary']}."
+        return "Tell me the amount and currencies, for example: convert 5000 BDT to CNY."
+
+    if re.search(r"\b(compare|cheapest|best rate|fees? to send)\b", low):
+        amount, cur = _amount(text)
+        dst = _cur((re.search(rf"\bto\s+{CUR}", low) or [None, None])[1], user.home_currency)
+        r = call("compare_remittance_providers", amount=amount or 1000, from_currency=cur or user.study_currency,
+                 to_currency=dst)
+        best = r["options"][0]
+        return (f"Cheapest: {best['provider']}: they receive {best['receive_amount']:,.2f} {best['receive_currency']} "
+                f"(total cost {best['total_cost_pct']}%). A bank wire costs "
+                f"{next(o['total_cost_pct'] for o in r['options'] if o['provider_id'] == 'bank_wire')}%.")
+
+    m = re.search(r"\b(send|transfer|pay)\b\s+(.*?)\s+\bto\s+(?:my\s+)?([a-z][\w .'-]{1,40})$", low)
+    if m:
+        amount, cur = _amount(m.group(2))
+        if amount:
+            r = call("send_remittance", recipient=m.group(3).strip(), amount=amount, currency=cur)
+            return _status_line(r)
+
+    if re.search(r"\b(balance|wallet|how much (money|do i have))\b", low):
+        r = call("get_wallet_balances")
+        return "Your balances: " + ", ".join(f"{b['balance']:,.2f} {b['currency']}" for b in r["balances"]) + "."
+
+    if re.search(r"\b(passport|credit|history report)\b", low):
+        r = call("get_credit_passport")
+        return (f"Financial Passport: {r.get('on_time_payments', 0)} on-time payments over "
+                f"{r.get('months_of_history', 0)} months, reliability {r.get('reliability_score')}.")
+
+    if re.search(r"\b(transactions|history|recent)\b", low):
+        r = call("get_recent_transactions", limit=5)
+        return "Recent: " + "; ".join(f"{t['kind']} {t['amount']:,.0f} {t['currency']} ({t['status']})"
+                                      for t in r["transactions"]) + "."
+
+    return ("I can pay your tuition, send money home, compare transfer fees, convert currencies, or check if a "
+            "payment request is a scam. Try: \"pay my tuition\" or \"send 2000 CNY to mother\".")
