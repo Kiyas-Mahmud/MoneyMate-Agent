@@ -168,3 +168,18 @@ def test_expiry_times_carry_a_utc_offset(client, auth):
     one = client.get(f"/api/agent/actions/{action_id}", headers=auth).json()
     challenge = client.get(f"/api/agent/actions/{action_id}/challenge", headers=auth).json()
     assert one["expires_at"].endswith("+00:00") and challenge["expires_at"].endswith("+00:00")
+
+
+def test_expired_requests_are_not_listed_as_waiting(client, auth):
+    from datetime import datetime, timedelta, timezone
+
+    from app.core.database import SessionLocal
+    from app.models import AgentAction
+
+    action_id = money_action(chat(client, auth, "Pay my tuition"))["action_id"]
+    with SessionLocal() as db:
+        db.get(AgentAction, action_id).expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+        db.commit()
+    waiting = client.get("/api/agent/actions?status=AWAITING_VERIFICATION", headers=auth).json()
+    assert action_id not in [a["id"] for a in waiting]
+    assert client.get(f"/api/agent/actions/{action_id}", headers=auth).json()["status"] == "EXPIRED"

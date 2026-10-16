@@ -37,6 +37,8 @@ def messages(session_id: str, user: User = Depends(get_current_user), db: Sessio
 @router.get("/actions")
 def list_actions(status: str | None = None, limit: int = 50, user: User = Depends(get_current_user),
                  db: Session = Depends(get_db)):
+    if payments.expire_stale(db, user.id):
+        db.commit()
     q = select(AgentAction).where(AgentAction.user_id == user.id)
     if status:
         q = q.where(AgentAction.status == status)
@@ -47,6 +49,8 @@ def list_actions(status: str | None = None, limit: int = 50, user: User = Depend
 @router.get("/actions/{action_id}")
 def get_action(action_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """One action, e.g. for the verify sheet opened from a notification."""
+    if payments.expire_stale(db, user.id):
+        db.commit()
     a = db.get(AgentAction, action_id)
     if a is None or a.user_id != user.id:
         raise HTTPException(404, "Action not found")
