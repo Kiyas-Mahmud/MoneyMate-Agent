@@ -235,3 +235,12 @@ def test_ocr_spacing_in_amounts_is_repaired(client, auth):
     r = client.post("/api/scam-check", headers=auth,
                     json={"text": "请通过微信转账 CNY 22, 100 到我们的代理账户。Pay CNY 22,100 by WeChat transfer to our agent."}).json()
     assert r["extracted"]["amount"] == 22100
+
+
+def test_shortfall_conversion_is_exact(client, auth):
+    action = money_action(chat(client, auth, "Pay my tuition"))
+    convert = next(p for p in action["plan"] if p["step"] == "convert")
+    q = client.post("/api/remittance/compare", headers=auth,
+                    json={"amount": convert["amount"], "from_currency": convert["from"], "to_currency": convert["to"]}).json()
+    received = next(o for o in q["options"] if o["provider_id"] == "remitlite")["receive_amount"]
+    assert 8000 <= received < 8001  # covers the shortfall without over-converting
