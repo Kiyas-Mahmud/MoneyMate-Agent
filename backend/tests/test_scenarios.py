@@ -216,3 +216,22 @@ def test_add_recipient_then_send_waits_for_verification(client, auth):
                        json={"recipient": "Nusrat Jahan", "amount": 500, "currency": "CNY"}).json()
     assert sent["status"] in ("AWAITING_VERIFICATION", "BLOCKED")
     assert sent["transaction"]["status"] != "COMPLETED"  # nothing moves without the student's verification
+
+
+def test_money_mule_job_offer_is_a_scam(client, auth):
+    text = "Easy job for students: receive 30,000 CNY from our client and forward it to our partner. Keep 10% for yourself."
+    r = client.post("/api/scam-check", headers=auth, json={"text": text}).json()
+    assert "MONEY_MULE" in [f["code"] for f in r["red_flags"]]
+    assert r["verdict"] == "LIKELY_SCAM"
+
+
+def test_cancellation_threat_is_flagged(client, auth):
+    r = client.post("/api/scam-check", headers=auth,
+                    json={"text": "Your seat will be cancelled unless you pay CNY 5,000 now."}).json()
+    assert "THREAT" in [f["code"] for f in r["red_flags"]]
+
+
+def test_ocr_spacing_in_amounts_is_repaired(client, auth):
+    r = client.post("/api/scam-check", headers=auth,
+                    json={"text": "请通过微信转账 CNY 22, 100 到我们的代理账户。Pay CNY 22,100 by WeChat transfer to our agent."}).json()
+    assert r["extracted"]["amount"] == 22100

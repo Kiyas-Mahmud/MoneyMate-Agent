@@ -14,7 +14,12 @@ from app.models import Payee
 
 URGENCY = r"\b(urgent|immediately|within (24|48) hours|today only|last chance|final notice|act now|asap)\b"
 DISCOUNT = r"\b(discount|\d{1,2}\s?% off|special offer|reduced fee|cheaper rate|cashback|save \d+)\b"
-THREAT = r"\b(deport|visa (will be )?(cancel|revok)|arrest|police|immigration (officer|case)|legal action|penalty|enrol(l)?ment (will be )?cancel)\b"
+THREAT = (r"\b(deport|visa (will be )?(cancel|revok)|arrest|police|immigration (officer|case)|legal action|penalty|"
+          r"enrol(l)?ment (will be )?cancel|(seat|place|admission|offer) (will be )?(cancel|revok|withdrawn))\w*")
+# Money-mule recruitment: "receive money from our client and forward it, keep 10%".
+MULE = (r"\b(receive\b.{0,60}\b(and|then)\s+(forward|send|transfer|pass)|forward (it|the money|the funds)|"
+        r"keep \d{1,2}\s?%|\d{1,2}\s?% (commission|for yourself)|use your (bank )?account to (receive|move)|"
+        r"(rent|lend) (out )?your (bank )?account)")
 RISKY_CHANNEL = r"\b(bitcoin|btc|usdt|crypto|gift ?card|itunes|steam card|wechat (pay )?(transfer|to)|alipay to|western union to|personal account|money ?gram)\b"
 SECRECY = r"\b(don'?t tell|keep (this )?(secret|confidential)|do not contact (the )?(university|school))\b"
 AMOUNT = r"(?:(USD|CNY|RMB|BDT|CAD|GBP|MYR|EUR|\$|¥|৳|£)\s?([\d,]+(?:\.\d+)?)|([\d,]+(?:\.\d+)?)\s?(USD|CNY|RMB|BDT|CAD|GBP|MYR|EUR|yuan|taka|dollars?))"
@@ -74,9 +79,15 @@ def find_user_payee(db: Session, user_id: int, name: str) -> Payee | None:
     return best if best is not None and _similar(name, best.name) >= 0.6 else None
 
 
+def _clean(text: str) -> str:
+    """Undo common OCR artifacts: "22, 100" -> "22,100", full-width digits and punctuation -> ASCII."""
+    t = (text or "").translate(str.maketrans("０１２３４５６７８９，．：％", "0123456789,.:%"))
+    return re.sub(r"(?<=\d)[,.] (?=\d{3}\b)", lambda m: m.group(0)[0], t)
+
+
 def analyze_request(db: Session, text: str) -> dict:
     """Extract payee/amount/account from free text and list red flags."""
-    t = text or ""
+    t = _clean(text)
     flags = []
     checks = [
         (URGENCY, "URGENCY", "Pushes you to pay immediately"),
@@ -84,6 +95,7 @@ def analyze_request(db: Session, text: str) -> dict:
         (THREAT, "THREAT", "Threatens visa, enrolment or legal trouble"),
         (RISKY_CHANNEL, "RISKY_CHANNEL", "Asks for crypto, gift cards or a transfer to a personal account / e-wallet"),
         (SECRECY, "SECRECY", "Asks you to keep it secret or not contact the university"),
+        (MULE, "MONEY_MULE", "Asks you to receive and pass on someone else's money: that is money-mule work and illegal"),
     ]
     for pattern, code, text_ in checks:
         m = re.search(pattern, t, re.I)
@@ -114,7 +126,7 @@ def analyze_request(db: Session, text: str) -> dict:
                       "explanation": verification["message"]})
 
     pressure = len({f["code"] for f in flags} & {"URGENCY", "DISCOUNT", "THREAT", "SECRECY"})
-    severe = any(f["code"] in ("ACCOUNT_MISMATCH", "RISKY_CHANNEL", "THREAT") for f in flags)
+    severe = any(f["code"] in ("ACCOUNT_MISMATCH", "RISKY_CHANNEL", "THREAT", "MONEY_MULE") for f in flags)
     verdict = "LIKELY_SCAM" if severe or pressure >= 2 else ("CAUTION" if flags else "NO_RED_FLAGS_FOUND")
     return {"verdict": verdict, "red_flags": flags, "pressure_flags": min(pressure, 3),
             "extracted": {"payee": claimed, "amount": amount, "currency": currency, "account": account},

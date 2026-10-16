@@ -121,7 +121,9 @@ def test_snapshot_used_when_api_is_down(monkeypatch, live_fx):
 
 # ---------- Gemini second opinion ----------
 
-BENIGN_BUT_SCAM = "Hi, I'm a recruiter. Receive 3000 USD from our client into your account and forward it to my partner, you keep 10%."
+# A scam the keyword rules don't catch (no urgency, threat or risky channel words); only the AI reads the intent.
+BENIGN_BUT_SCAM = ("Hi, I'm from the student union. Everyone pays CNY 800 for the graduation photo package. "
+                   "Please send it to my own bank card, the union account is being updated.")
 
 
 def test_second_opinion_unavailable_without_key(client, auth):
