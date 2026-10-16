@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 330" width="980" height="330" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
+  <style>
+    .chip { fill: #f4f4f4; stroke: #d9d9d9; }
+    .box { fill: #ffffff; stroke: #cfcfcf; }
+    .dark { fill: #111111; }
+    .red { fill: #fdeceb; stroke: #e8b4b0; }
+    .green { fill: #e7f4ec; stroke: #a9d3b9; }
+    .t { font-size: 13px; font-weight: 600; fill: #111; }
+    .s { font-size: 10.5px; fill: #5c5c5c; }
+    .tw { font-size: 13px; font-weight: 600; fill: #fff; }
+    .sw { font-size: 10.5px; fill: #d0d0d0; }
+    .tr { font-size: 13px; font-weight: 600; fill: #a8231a; }
+    .tg { font-size: 13px; font-weight: 600; fill: #1e6b41; }
+    .lbl { font-size: 10.5px; fill: #333; }
+    .arrow { stroke: #111; stroke-width: 1.4; fill: none; marker-end: url(#a); }
+    .arrowr { stroke: #a8231a; stroke-width: 1.4; fill: none; marker-end: url(#ar); }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111"/></marker>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#a8231a"/></marker>
+  </defs>
+  <rect width="980" height="330" fill="#fff"/>
+
+  <!-- Sources -->
+  <text class="s" x="20" y="44">Who can start a payment</text>
+  <rect class="chip" x="20" y="58" width="150" height="40" rx="20"/>
+  <text class="t" x="95" y="83" text-anchor="middle">Agent chat</text>
+  <rect class="chip" x="20" y="118" width="150" height="40" rx="20"/>
+  <text class="t" x="95" y="143" text-anchor="middle">App screen</text>
+  <rect class="chip" x="20" y="178" width="150" height="40" rx="20"/>
+  <text class="t" x="95" y="203" text-anchor="middle">Daily monitor</text>
+  <text class="s" x="95" y="236" text-anchor="middle">(standing instructions)</text>
+
+  <path class="arrow" d="M170,78 C195,78 195,138 218,138"/>
+  <path class="arrow" d="M170,138 L218,138"/>
+  <path class="arrow" d="M170,198 C195,198 195,138 218,138"/>
+
+  <!-- Prepared -->
+  <rect class="box" x="220" y="96" width="160" height="84" rx="16"/>
+  <text class="t" x="236" y="120">Prepared</text>
+  <text class="s" x="236" y="138">payee check</text>
+  <text class="s" x="236" y="153">risk score (6 models)</text>
+  <text class="s" x="236" y="168">policy tier</text>
+
+  <!-- Blocked -->
+  <rect class="red" x="440" y="22" width="200" height="72" rx="16"/>
+  <text class="tr" x="456" y="46">Blocked (T3)</text>
+  <text class="s" x="456" y="64">reasons shown, student notified</text>
+  <text class="s" x="456" y="79">cannot be verified later</text>
+  <path class="arrowr" d="M380,124 C410,124 410,58 438,58"/>
+  <text class="lbl" x="398" y="48" text-anchor="middle">high risk</text>
+
+  <!-- Awaiting -->
+  <rect class="dark" x="440" y="124" width="200" height="104" rx="16"/>
+  <text class="tw" x="456" y="148">Awaiting verification (T2)</text>
+  <text class="sw" x="456" y="167">one-time challenge</text>
+  <text class="sw" x="456" y="182">expires in 15 min (24 h if scheduled)</text>
+  <text class="sw" x="456" y="197">push: "Verify to complete</text>
+  <text class="sw" x="456" y="212">your payment"</text>
+  <path class="arrow" d="M380,152 C410,152 410,176 438,176"/>
+  <text class="lbl" x="404" y="200" text-anchor="middle">every other</text>
+  <text class="lbl" x="404" y="213" text-anchor="middle">payment</text>
+
+  <!-- Outcomes -->
+  <rect class="green" x="720" y="22" width="240" height="84" rx="16"/>
+  <text class="tg" x="736" y="46">Verified</text>
+  <text class="s" x="736" y="64">fingerprint-signed challenge checks out</text>
+  <text class="s" x="736" y="79">money moves (balance re-checked)</text>
+  <text class="s" x="736" y="94">receipt · audit entry · notification</text>
+
+  <rect class="box" x="720" y="126" width="240" height="56" rx="16"/>
+  <text class="t" x="736" y="150">Rejected</text>
+  <text class="s" x="736" y="168">the student said no · nothing sent</text>
+
+  <rect class="box" x="720" y="202" width="240" height="56" rx="16"/>
+  <text class="t" x="736" y="226">Expired</text>
+  <text class="s" x="736" y="244">not verified in time · nothing sent</text>
+
+  <path class="arrow" d="M640,150 C680,150 680,64 718,64"/>
+  <path class="arrow" d="M640,170 C680,170 680,154 718,154"/>
+  <path class="arrow" d="M640,200 C680,200 680,230 718,230"/>
+
+  <rect x="20" y="276" width="940" height="38" rx="19" fill="#f4f4f4"/>
+  <text class="t" x="490" y="300" text-anchor="middle">There is no path from "Prepared" to money moving that skips the student's fingerprint.</text>
+</svg>

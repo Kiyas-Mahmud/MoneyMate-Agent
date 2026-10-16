@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 560" width="980" height="560" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
+  <style>
+    .head { fill: #111; }
+    .headl { fill: #f4f4f4; stroke: #d9d9d9; }
+    .th { font-size: 13px; font-weight: 600; fill: #fff; }
+    .thd { font-size: 13px; font-weight: 600; fill: #111; }
+    .life { stroke: #c8c8c8; stroke-width: 1.2; stroke-dasharray: 4 4; }
+    .m { font-size: 11px; fill: #111; }
+    .ms { font-size: 10.5px; fill: #5c5c5c; }
+    .num { font-size: 10px; font-weight: 600; fill: #fff; }
+    .arrow { stroke: #111; stroke-width: 1.3; fill: none; marker-end: url(#a); }
+    .ret { stroke: #111; stroke-width: 1.3; fill: none; stroke-dasharray: 5 3; marker-end: url(#a); }
+    .note { fill: #ffffff; stroke: #cfcfcf; }
+    .check { font-size: 10.5px; fill: #1e6b41; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111"/></marker>
+  </defs>
+  <rect width="980" height="560" fill="#fff"/>
+
+  <!-- Lanes: student 90, app 330, keystore 560, backend 820 -->
+  <rect class="headl" x="20" y="20" width="140" height="40" rx="20"/>
+  <text class="thd" x="90" y="45" text-anchor="middle">Student</text>
+  <rect class="head" x="250" y="20" width="160" height="40" rx="20"/>
+  <text class="th" x="330" y="45" text-anchor="middle">MoneyMate app</text>
+  <rect class="head" x="470" y="20" width="180" height="40" rx="20"/>
+  <text class="th" x="560" y="45" text-anchor="middle">Android Keystore</text>
+  <rect class="head" x="730" y="20" width="180" height="40" rx="20"/>
+  <text class="th" x="820" y="45" text-anchor="middle">Backend</text>
+
+  <line class="life" x1="90" y1="60" x2="90" y2="545"/>
+  <line class="life" x1="330" y1="60" x2="330" y2="545"/>
+  <line class="life" x1="560" y1="60" x2="560" y2="545"/>
+  <line class="life" x1="820" y1="60" x2="820" y2="545"/>
+
+  <!-- 1 -->
+  <circle cx="820" cy="88" r="9" fill="#111"/><text class="num" x="820" y="92" text-anchor="middle">1</text>
+  <text class="m" x="836" y="86">Payment prepared:</text>
+  <text class="ms" x="836" y="100">random nonce stored,</text>
+  <text class="ms" x="836" y="113">expiry set, audit entry</text>
+
+  <!-- 2 -->
+  <path class="ret" d="M818,132 L332,132"/>
+  <circle cx="575" cy="132" r="9" fill="#111"/><text class="num" x="575" y="136" text-anchor="middle">2</text>
+  <text class="m" x="595" y="126">notification "Verify to complete your payment"</text>
+  <path class="arrow" d="M328,152 L92,152"/>
+  <text class="ms" x="210" y="146" text-anchor="middle">opens the verify sheet</text>
+
+  <!-- 3 -->
+  <path class="arrow" d="M332,186 L818,186"/>
+  <circle cx="575" cy="186" r="9" fill="#111"/><text class="num" x="575" y="190" text-anchor="middle">3</text>
+  <text class="m" x="595" y="180">GET /agent/actions/{id}/challenge</text>
+  <path class="ret" d="M818,216 L332,216"/>
+  <text class="m" x="595" y="210">"moneymate-verify:{id}:{nonce}"</text>
+
+  <!-- 4 -->
+  <path class="arrow" d="M332,250 L558,250"/>
+  <circle cx="445" cy="250" r="9" fill="#111"/><text class="num" x="445" y="254" text-anchor="middle">4</text>
+  <text class="m" x="445" y="243" text-anchor="middle" dx="0" dy="-8">sign(challenge)</text>
+
+  <!-- 5 -->
+  <path class="arrow" d="M558,284 L92,284"/>
+  <circle cx="330" cy="284" r="9" fill="#111"/><text class="num" x="330" y="288" text-anchor="middle">5</text>
+  <text class="m" x="210" y="277" text-anchor="middle">BiometricPrompt: "Verify payment"</text>
+  <path class="arrow" d="M92,316 L558,316"/>
+  <text class="m" x="210" y="310" text-anchor="middle">touches the fingerprint sensor</text>
+
+  <!-- 6 -->
+  <path class="ret" d="M558,350 L332,350"/>
+  <circle cx="445" cy="350" r="9" fill="#111"/><text class="num" x="445" y="354" text-anchor="middle">6</text>
+  <text class="m" x="445" y="335" text-anchor="middle">ECDSA P-256 signature</text>
+
+  <!-- 7 -->
+  <path class="arrow" d="M332,384 L818,384"/>
+  <circle cx="575" cy="384" r="9" fill="#111"/><text class="num" x="575" y="388" text-anchor="middle">7</text>
+  <text class="m" x="595" y="378">POST /agent/actions/{id}/verify {device_id, signature}</text>
+
+  <!-- 8 checks -->
+  <rect class="note" x="660" y="402" width="300" height="104" rx="14"/>
+  <circle cx="676" cy="420" r="9" fill="#111"/><text class="num" x="676" y="424" text-anchor="middle">8</text>
+  <text class="m" x="692" y="424">Backend checks, then settles</text>
+  <text class="check" x="676" y="444">✓ action belongs to this student, still open</text>
+  <text class="check" x="676" y="459">✓ not expired · nonce unused (no replay)</text>
+  <text class="check" x="676" y="474">✓ phone registered to the same student</text>
+  <text class="check" x="676" y="489">✓ signature matches the stored public key</text>
+
+  <!-- 9 -->
+  <path class="ret" d="M818,526 L332,526"/>
+  <circle cx="575" cy="526" r="9" fill="#111"/><text class="num" x="575" y="530" text-anchor="middle">9</text>
+  <text class="m" x="595" y="520">VERIFIED · receipt with HMAC code</text>
+  <text class="ms" x="350" y="546">Any failed check: HTTP 403, nothing moves.</text>
+</svg>
