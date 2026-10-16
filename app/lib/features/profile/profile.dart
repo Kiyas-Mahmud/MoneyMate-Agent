@@ -207,6 +207,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         rows: [
           _RowData('Wallets', d == null ? '…' : d.currencies.join(' · '), onTap: () => context.push('/wallet')),
           _RowData('Saved recipients', d == null ? '…' : recipientsText(), onTap: () => context.push('/send')),
+          _RowData('Payment history', 'On-time record for landlords and banks', onTap: () => context.push('/history')),
           _RowData(
             'University on file',
             d?.university == null ? (d == null ? '…' : 'Not linked') : 'Verified ${d!.university!['account_hint']}',
