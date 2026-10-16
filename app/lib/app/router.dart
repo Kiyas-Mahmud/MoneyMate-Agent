@@ -10,6 +10,7 @@ import '../features/auth/login.dart';
 import '../features/auth/onboarding.dart';
 import '../features/auth/register.dart';
 import '../features/auth/splash.dart';
+import '../features/history/history.dart';
 import '../features/home/home.dart';
 import '../features/notifications/notifications.dart';
 import '../features/pay/pay_menu.dart';
@@ -90,6 +91,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ? sheetPage(s, TransactionSheet(tx: Map<String, dynamic>.from(s.extra as Map)))
             : fadeThroughPage(s, const ActivityScreen()),
       ),
+      GoRoute(path: '/history', pageBuilder: (c, s) => sharedAxisPage(s, const HistoryScreen())),
       GoRoute(path: '/standing', pageBuilder: (c, s) => sharedAxisPage(s, const StandingScreen())),
       GoRoute(path: '/standing/new', pageBuilder: (c, s) => sheetPage(s, const NewStandingSheet())),
       GoRoute(path: '/protection', pageBuilder: (c, s) => sheetPage(s, const ProtectionSheet())),
