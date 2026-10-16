@@ -8,7 +8,9 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models import Payee, Transaction, TuitionInvoice, User
-from app.services import payments, receipts, reminders, sandbox, verification
+from app.services import audit, payments, receipts, reminders, sandbox, verification
+from app.services.notify import notify
+from app.services.seed import CURRENCY_BY_COUNTRY
 from app.services.agent.second_opinion import analyze_with_second_opinion
 
 router = APIRouter(tags=["finance"])
@@ -88,6 +90,41 @@ def payees(user: User = Depends(get_current_user), db: Session = Depends(get_db)
                 "verified": p.verified}
     mine = db.scalars(select(Payee).where(Payee.owner_user_id == user.id)).all()
     return {"recipients": [view(p) for p in mine], "registry": [view(p) for p in verification.registry(db)]}
+
+
+class PayeeIn(BaseModel):
+    name: str = Field(min_length=2, max_length=160)
+    relationship: str | None = Field(default=None, max_length=40)
+    country: str = Field(min_length=2, max_length=60)
+    bank_name: str | None = Field(default=None, max_length=120)
+    account_ref: str = Field(min_length=6, max_length=64)
+
+
+@router.post("/payees", status_code=201)
+def add_payee(body: PayeeIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Saves a recipient (family, landlord...). It is unverified: the first payment still needs the fingerprint."""
+    account = "".join(ch for ch in body.account_ref if ch.isalnum()).upper()
+    if not 6 <= len(account) <= 34 or not any(ch.isdigit() for ch in account):
+        raise HTTPException(400, "Enter the full account number")
+    if body.country not in CURRENCY_BY_COUNTRY:
+        raise HTTPException(400, f"Sending to {body.country} isn't supported yet")
+    mine = db.scalars(select(Payee).where(Payee.owner_user_id == user.id)).all()
+    if any("".join(ch for ch in p.account_ref if ch.isalnum()).upper() == account for p in mine):
+        raise HTTPException(409, "You already saved this account")
+    p = Payee(owner_user_id=user.id, name=body.name.strip(), kind="INDIVIDUAL",
+              relationship=(body.relationship or "").strip().lower() or None, country=body.country,
+              currency=CURRENCY_BY_COUNTRY[body.country], bank_name=(body.bank_name or "").strip() or None,
+              account_ref=account, verified=False)
+    db.add(p)
+    db.flush()
+    audit.record(db, user_id=user.id, actor="STUDENT", event="PAYEE_ADDED",
+                 details={"payee_id": p.id, "name": p.name, "country": p.country, "account_hint": account[-4:]})
+    notify(db, user.id, kind="PAYEE_ADDED", title="New recipient saved",
+           body=f"{p.name} (****{account[-4:]}) was added. If this wasn't you, change your password right away.")
+    db.commit()
+    return {"id": p.id, "name": p.name, "kind": p.kind, "relationship": p.relationship, "country": p.country,
+            "currency": p.currency, "bank_name": p.bank_name, "account_hint": "****" + account[-4:],
+            "verified": p.verified}
 
 
 @router.post("/payees/verify")
