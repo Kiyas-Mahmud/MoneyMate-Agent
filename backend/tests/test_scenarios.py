@@ -136,3 +136,18 @@ def test_audit_chain_detects_tampering(client, auth):
 def test_requires_authentication(client):
     assert client.get("/api/wallet").status_code in (401, 403)
     assert client.post("/api/agent/chat", json={"message": "pay my tuition"}).status_code in (401, 403)
+
+
+def test_semester_year_is_not_read_as_the_amount(client, auth):
+    action = money_action(chat(client, auth, "Pay my Spring 2027 tuition"))
+    assert action["status"] == "AWAITING_VERIFICATION"
+    assert action["transaction"]["amount"] == 26000  # the open invoice, not 2,027
+    assert action["transaction"]["memo"] == "Tuition - Spring 2027"
+
+
+def test_short_scam_message_is_checked_not_paid(client, auth):
+    resp = chat(client, auth, "URGENT: Pay Spring 2027 tuition today and get 15% off. CNY 22,100 by WeChat to "
+                              "our agent account 6222 0011 2233 7788. Can you pay this?")
+    assert [a["tool"] for a in resp["actions"]] == ["analyze_payment_request"]
+    assert resp["actions"][0]["verdict"] == "LIKELY_SCAM"
+    assert resp["reply"].startswith("I won't pay this")
