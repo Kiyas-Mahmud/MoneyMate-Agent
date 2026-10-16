@@ -183,3 +183,17 @@ def test_expired_requests_are_not_listed_as_waiting(client, auth):
     waiting = client.get("/api/agent/actions?status=AWAITING_VERIFICATION", headers=auth).json()
     assert action_id not in [a["id"] for a in waiting]
     assert client.get(f"/api/agent/actions/{action_id}", headers=auth).json()["status"] == "EXPIRED"
+
+
+def test_invoices_link_their_payment(client, auth):
+    invoices = client.get("/api/tuition/invoices", headers=auth).json()
+    assert invoices and all("transaction_id" in i for i in invoices)
+    assert invoices[0]["status"] == "OPEN" and invoices[0]["transaction_id"] is None
+
+
+def test_account_number_stops_before_words(client, auth):
+    text = ("Dear student, your seat will be cancelled. Pay CNY 24,500 today by Alipay to our agent account "
+            "6222 0099 1234 5678 for a 5 percent discount.")
+    r = client.post("/api/scam-check", headers=auth, json={"text": text}).json()
+    assert r["extracted"]["account"] == "6222 0099 1234 5678"
+    assert r["verdict"] == "LIKELY_SCAM"
