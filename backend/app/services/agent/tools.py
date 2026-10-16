@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import AgentAction, Payee, Transaction, User
-from app.services import audit, payments, receipts, reminders, sandbox, standing, verification
+from app.services import audit, history, payments, receipts, reminders, sandbox, standing, verification
 from app.services.agent.second_opinion import analyze_with_second_opinion
 
 STR, NUM = {"type": "string"}, {"type": "number"}
@@ -42,6 +42,12 @@ DECLARATIONS = [
      "description": ("Payment proof for a completed transaction: reference number, details and a verification code "
                      "anyone can check. Without transaction_id, returns the most recent completed payment."),
      "parameters": _obj({"transaction_id": {"type": "integer"}})},
+    {"name": "get_payment_history",
+     "description": ("The student's on-time payment record (rent, family support, tuition) for the last N months: "
+                     "how many payments were due, paid on time, late or missed. Use it when the student needs proof of "
+                     "reliable payments for a landlord, bank or university (they have no local credit history). "
+                     "The student can issue a verifiable report from the Payment history screen."),
+     "parameters": _obj({"months": {"type": "integer"}})},
     {"name": "pay_tuition",
      "description": ("Prepare a tuition payment. With no payee, uses the student's registered university and open "
                      "invoice. If the wallet is short, it plans the currency conversion too, verified together. If the "
@@ -135,6 +141,11 @@ def run_tool(db: Session, user: User, session_id: str, name: str, args: dict) ->
         elif name == "get_tuition_reminders":
             result = {"reminders": reminders.tuition_reminders(db, user)}
             summary = "Checked tuition deadlines"
+        elif name == "get_payment_history":
+            rec = history.build(db, user, int(args.get("months", 6)))
+            result = {k: rec[k] for k in ("months", "period_start", "period_end", "summary", "categories", "upcoming")}
+            result["how_to_share"] = "Profile → Payment history → Issue verifiable report (PDF with a QR code)"
+            summary = f"Checked payment history: {rec['summary']['on_time']}/{rec['summary']['payments_due']} on time"
         elif name == "get_payment_receipt":
             q = select(Transaction).where(Transaction.user_id == user.id, Transaction.status == "COMPLETED")
             if args.get("transaction_id"):
@@ -152,5 +163,5 @@ def run_tool(db: Session, user: User, session_id: str, name: str, args: dict) ->
         result["action_id"] = _record_read(db, user, session_id, name, args, summary, result)
         return result
     except (payments.PaymentError, sandbox.SandboxError, receipts.ReceiptError, standing.StandingError,
-            KeyError, ValueError) as e:
+            history.HistoryError, KeyError, ValueError) as e:
         return {"status": "ERROR", "error": str(e) if not isinstance(e, KeyError) else f"Missing argument {e}"}

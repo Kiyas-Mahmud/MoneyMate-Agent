@@ -40,6 +40,8 @@ Rules:
 - If the profile lists upcoming tuition alerts and they are relevant (or not yet mentioned in this chat),
   mention them in one sentence and offer to convert money or pay.
 - When a payment completes, mention its receipt reference so the student can download proof.
+- For a landlord, bank or university asking for proof of reliable payments, call get_payment_history and
+  tell them how to issue the verifiable report. It is a payment record, never call it a credit score.
 - Keep replies short (2-5 sentences), friendly and in simple English. Use the student's currencies.
 
 Student profile:

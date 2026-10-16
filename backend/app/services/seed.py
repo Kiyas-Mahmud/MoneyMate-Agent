@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import hash_password
-from app.models import (AgentAction, ChatMessage, Notification, Payee, StandingInstruction, Transaction,
-                        TuitionInvoice, User, Wallet)
+from app.models import (AgentAction, ChatMessage, Notification, Payee, PaymentReport, StandingInstruction,
+                        Transaction, TuitionInvoice, User, Wallet)
 from app.services import audit, sandbox
 
 # Fictional institutions; account numbers are sandbox values.
@@ -41,14 +41,25 @@ def _ago(days: float, hour: int = 8) -> datetime:  # hours are UTC (08:00 UTC = 
     return d.replace(hour=hour, minute=random.randint(0, 59), second=0, microsecond=0)
 
 
-def _hist(db, user, *, kind, direction, amount, currency, counterparty, days, payee=None, provider=None, hour=8):
-    db.add(Transaction(user_id=user.id, kind=kind, direction=direction, amount=amount, currency=currency,
+def _month_day(months_back: int, day: int, hour: int = 8) -> datetime:
+    """A date `months_back` calendar months ago on `day` (UTC), e.g. rent on the 4th of each month."""
+    now = datetime.now(timezone.utc)
+    y, m = divmod(now.year * 12 + now.month - 1 - months_back, 12)
+    return datetime(y, m + 1, min(day, 28), hour, random.randint(0, 59), tzinfo=timezone.utc)
+
+
+def _hist(db, user, *, kind, direction, amount, currency, counterparty, days=None, when=None, payee=None,
+          provider=None, hour=8):
+    at = when or _ago(days, hour)
+    tx = Transaction(user_id=user.id, kind=kind, direction=direction, amount=amount, currency=currency,
                        amount_usd=sandbox.to_usd(amount, currency), payee_id=payee.id if payee else None,
                        counterparty=counterparty, counterparty_account=payee.account_ref if payee else None,
                        channel="CARD" if kind == "CARD" else "BANK_TRANSFER", provider=provider, status="COMPLETED",
                        risk_score=round(random.uniform(0.01, 0.08), 3) if direction == "OUT" else None,
                        risk_level="LOW" if direction == "OUT" else None, tier="T2" if direction == "OUT" else "T0",
-                       initiated_by="USER", created_at=_ago(days, hour), executed_at=_ago(days, hour)))
+                       initiated_by="USER", created_at=at, executed_at=at)
+    db.add(tx)
+    return tx
 
 
 def provision_student(db: Session, user: User, with_history: bool):
@@ -83,29 +94,52 @@ def provision_student(db: Session, user: User, with_history: bool):
                               amount=26_000.0 if study == "CNY" else 9_500.0, currency=study,
                               due_date=(datetime.now().date() + timedelta(days=6)).isoformat()))  # local date, like reminders
 
-    period = datetime.now().strftime("%Y-%m")  # this month's payments are already in the history
+    random.seed(user.id)
+    now = datetime.now(timezone.utc)
+    # Payment history follows calendar months, like real rent and family support: rent is due on the 5th and
+    # was paid on the 3rd-5th, except one month when it was paid on the 10th (late); money for mother goes out on the
+    # 1st-2nd; father's support arrives late in the month.
+    history = []
+    for m in range(6):
+        history += [("rent", _month_day(m, 10 if m == 4 else random.choice([3, 4, 5]))),
+                    ("mother", _month_day(m, random.choice([1, 2]))),
+                    ("father", _month_day(m, 27, hour=6))]
+    history = [(k, at) for k, at in history if at <= now]
+    paid_this_month = {k for k, at in history if (at.year, at.month) == (now.year, now.month)}
+    prev = (now.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    period = now.strftime("%Y-%m")
     db.add_all([
         StandingInstruction(user_id=user.id, payee_id=mother.id, amount=1_500.0 if study == "CNY" else 200.0,
                             currency=study, day_of_month=1, note="Monthly support for mother",
-                            last_prepared_period=period if with_history else None),
+                            last_prepared_period=(period if "mother" in paid_this_month else prev)
+                            if with_history else None),
         StandingInstruction(user_id=user.id, payee_id=landlord.id, amount=2_800.0 if study == "CNY" else 600.0,
-                            currency=study, day_of_month=5, note="Rent", last_prepared_period=period if with_history else None),
+                            currency=study, day_of_month=5, note="Rent",
+                            last_prepared_period=(period if "rent" in paid_this_month else prev)
+                            if with_history else None),
     ])
 
     if not with_history:
         return
-    random.seed(user.id)
     if uni:
-        _hist(db, user, kind="TUITION", direction="OUT", amount=24_500.0 if study == "CNY" else 9_000.0,
-              currency=study, counterparty=uni.name, payee=uni, days=128)
+        paid = _hist(db, user, kind="TUITION", direction="OUT", amount=24_500.0 if study == "CNY" else 9_000.0,
+                     currency=study, counterparty=uni.name, payee=uni, days=128)
+        db.flush()
+        db.add(TuitionInvoice(user_id=user.id, payee_id=uni.id, semester="Fall 2026", amount=paid.amount,
+                              currency=study, due_date=(paid.executed_at + timedelta(days=4)).date().isoformat(),
+                              status="PAID", transaction_id=paid.id, last_reminder_stage="DUE_IN_7_DAYS"))
+    for kind, at in history:
+        if kind == "rent":
+            _hist(db, user, kind="REMITTANCE_OUT", direction="OUT", amount=2_800.0 if study == "CNY" else 600.0,
+                  currency=study, counterparty=landlord.name, payee=landlord, when=at)
+        elif kind == "mother":
+            _hist(db, user, kind="REMITTANCE_OUT", direction="OUT", amount=1_500.0 if study == "CNY" else 200.0,
+                  currency=study, counterparty=mother.name, payee=mother, provider="RemitLite", when=at)
+        else:
+            _hist(db, user, kind="REMITTANCE_IN", direction="IN", amount=60_000.0, currency=home,
+                  counterparty=father.name, when=at)
     for m in range(5):
         base = 5 + m * 30
-        _hist(db, user, kind="REMITTANCE_IN", direction="IN", amount=60_000.0, currency=home,
-              counterparty=father.name, days=base + 2)
-        _hist(db, user, kind="REMITTANCE_OUT", direction="OUT", amount=1_500.0, currency=study,
-              counterparty=mother.name, payee=mother, provider="RemitLite", days=base + 4)
-        _hist(db, user, kind="REMITTANCE_OUT", direction="OUT", amount=2_800.0, currency=study,
-              counterparty=landlord.name, payee=landlord, days=base + 1)
         for _ in range(4):
             _hist(db, user, kind="CARD", direction="OUT", amount=float(random.randint(40, 420)), currency=study,
                   counterparty=random.choice(["Campus canteen", "Meituan", "Didi", "Walmart Nanshan", "China Mobile"]),
@@ -114,6 +148,7 @@ def provision_student(db: Session, user: User, with_history: bool):
 
 def _wipe(db: Session, user: User):
     uid = user.id
+    db.execute(delete(PaymentReport).where(PaymentReport.user_id == uid))
     db.execute(delete(TuitionInvoice).where(TuitionInvoice.user_id == uid))
     db.execute(delete(StandingInstruction).where(StandingInstruction.user_id == uid))
     db.execute(delete(Notification).where(Notification.user_id == uid))

@@ -161,6 +161,30 @@ the student is not looking at a finance app.
 in the sandbox) · phone registration `POST /api/devices`, `GET /api/devices`, FCM token update
 `POST /api/devices/{id}/push-token`
 
+## 10. Payment history report (credit building)
+
+**What it does.** A record of the student's regular payments made through MoneyMate: rent and family support
+(from standing instructions) and tuition, for the last 3, 6 or 12 months. Each payment that was due is
+marked **on time**, **late** or **missed**: monthly payments are on time if paid by the due day plus 3 days,
+tuition by its due date. The app shows the on-time rate, a month-by-month timeline and a breakdown by type
+(Profile → Payment history). The student can issue a **verifiable report**: a PDF with a reference, a QR code
+and an HMAC verification code. A landlord, bank or university checks it at a public link without an account
+and sees the summary (on-time counts by type, the period, who it was issued to), but not the payees or
+amounts. An issued report is a snapshot: later payments don't change it, and any edit makes the code fail.
+The agent explains the record when asked ("my landlord wants proof I pay rent on time").
+
+**Real problem.** International students arrive with no local credit history, so landlords ask for large
+deposits or guarantors and banks hesitate to offer accounts or cards. Their reliable payment record at home
+doesn't follow them.
+
+**What it is not.** It is not a credit score: there is no made-up number, only payments that really
+happened, with the rules shown on the report. Card spending and conversions between the student's own
+wallets are left out. Reporting to credit bureaus would need licensed partners and is on the roadmap.
+
+**API.** `GET /api/history?months=6` (the student's own record), `POST /api/history/reports` (issue),
+`GET /api/history/reports`, `GET /api/history/reports/{reference}/pdf`, public
+`GET /api/history/verify?reference=&code=` · agent tool `get_payment_history`
+
 ---
 
 ## Safety layer behind every feature
@@ -174,7 +198,8 @@ in the sandbox) · phone registration `POST /api/devices`, `GET /api/devices`, F
 
 ## Not included (removed on purpose)
 
-- **Credit-style "reliability score"**: it looked like a fake credit score. Feature 7 covers the real need: verifiable proof of payments.
+- **Credit-style "reliability score"**: it looked like a fake credit score. Feature 10 covers the real need
+  instead: a verifiable record of on-time payments, with no invented number.
 - **FX planner screen**: its useful part is now in feature 2 (shortfall and conversion cost before the deadline).
 
 ## Honest scope

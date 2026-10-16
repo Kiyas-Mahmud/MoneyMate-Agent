@@ -188,7 +188,11 @@ def test_expired_requests_are_not_listed_as_waiting(client, auth):
 def test_invoices_link_their_payment(client, auth):
     invoices = client.get("/api/tuition/invoices", headers=auth).json()
     assert invoices and all("transaction_id" in i for i in invoices)
-    assert invoices[0]["status"] == "OPEN" and invoices[0]["transaction_id"] is None
+    open_ = next(i for i in invoices if i["status"] == "OPEN")
+    paid = next(i for i in invoices if i["status"] == "PAID")  # last semester, paid on time
+    assert open_["transaction_id"] is None
+    receipt = client.get(f"/api/transactions/{paid['transaction_id']}/receipt", headers=auth).json()
+    assert receipt["type"] == "Tuition payment" and receipt["executed_at"][:10] <= paid["due_date"]
 
 
 def test_account_number_stops_before_words(client, auth):

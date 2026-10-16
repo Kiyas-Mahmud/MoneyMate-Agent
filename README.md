@@ -22,6 +22,7 @@ Built for the 2026 Shenzhen International FinTech Competition (FinTechathon), In
 | **Tuition deadline reminders** | Warns 14, 7 and 3 days before the due date (and when overdue), shows whether the wallet covers the invoice and what converting from the home currency costs today. |
 | **Multi-currency management** | BDT / CNY / USD wallets and conversion at live mid-market rates (ExchangeRate-API, hourly; snapshot fallback). Conversions are verified like payments. |
 | **Scam check** | Paste any invoice, email or message: rule-based red flags (urgency, discounts, threats, crypto / gift cards, secrecy, impersonated accounts) plus a Gemini second opinion that can raise, never lower, the warning. |
+| **Credit building** | "My landlord wants proof I pay rent on time" → a payment history report: rent, family support and tuition marked on time, late or missed over 3–12 months, shared as a PDF with a QR verification code. A real payment record for students with no local credit history, not a credit score. |
 | **Payment proof** | Every completed payment gets a receipt (reference, details, PDF) with an HMAC verification code that anyone can check at a public link; any change to the payment invalidates it. |
 
 ## How a request is handled
@@ -174,10 +175,10 @@ python -m ml.train_hybrid
 cd backend && python -m pytest -q
 ```
 
-64 backend tests, all passing (the app has its own 12 in `app/test`). The tests play the phone with real key pairs: an Android-Keystore-style P-256 key
+76 backend tests, all passing (the app has its own 12 in `app/test`). The tests play the phone with real key pairs: an Android-Keystore-style P-256 key
 (`AndroidPhone` in `tests/conftest.py`) and an Ed25519 test-client key (`Phone`, used by the older tests).
 
-- **End-to-end scenarios** (`test_scenarios.py`, 25): tuition with a planned conversion and one
+- **End-to-end scenarios** (`test_scenarios.py`, 26): tuition with a planned conversion and one
   verification, fake-invoice impersonation block, even a small family transfer waits for verification
   (and sends the notification), crypto-to-stranger block, money-mule block, prompt injection in a pasted
   invoice, another user cannot verify, a blocked payment cannot be verified, provider ranking, audit-chain
@@ -190,10 +191,13 @@ cd backend && python -m pytest -q
   verification, sandbox mode works only when enabled, a standing instruction is prepared on its due day
   and waits (and is not prepared twice), standing instruction set up by chat, mule alert on money from a
   stranger, tuition reminder notified once, notifications marked read.
-- **Features** (`test_features.py`, 19): reminder stages and shortfall, reminder logged once, receipt
+- **Features** (`test_features.py`, 17, plus parametrised cases): reminder stages and shortfall, reminder logged once, receipt
   verification and tamper detection, receipt PDF, no receipt before verification, receipt access control,
   live FX with offline fallback, and the Gemini second opinion (escalates, never downgrades, falls back on
   errors) with a mocked model.
+- **Payment history** (`test_history.py`, 8): rent, family support and tuition counted on time / late / missed, a
+  month without rent is missed, an issued report verifies publicly without revealing payees, it stays valid
+  after new payments, the PDF is private to its owner, a new student starts empty, the agent explains it.
 - **Android** (`test_android.py`, 7): a P-256 Keystore key verifies a payment, a P-256 signature for another
   payment fails, a key on the wrong curve is refused, a new phone triggers an alert, the push token can be
   rotated, the FCM message format (mocked token and HTTP), and a push failure does not break the payment.

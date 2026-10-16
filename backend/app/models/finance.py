@@ -105,3 +105,17 @@ class StandingInstruction(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_prepared_period: Mapped[str | None] = mapped_column(String(7))  # "2026-11"
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PaymentReport(Base):
+    """A payment history report the student issued (for a landlord, bank or university). The fields are a
+    snapshot at issue time, so later payments don't change a report someone already received."""
+
+    __tablename__ = "payment_reports"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    reference: Mapped[str | None] = mapped_column(String(32), unique=True, index=True)
+    months: Mapped[int] = mapped_column()
+    fields: Mapped[dict | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
