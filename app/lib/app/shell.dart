@@ -41,7 +41,7 @@ class AppShell extends StatelessWidget {
             Positioned(
               left: 16,
               right: 16,
-              bottom: 20,
+              bottom: 18,
               child: SafeArea(
                 top: false,
                 child: IgnorePointer(
