@@ -23,7 +23,20 @@ def _cur(token: str | None, default: str | None = None) -> str | None:
     return ALIASES.get(t, t.upper())
 
 
+SEMESTER = r"\b(spring|summer|fall|autumn|winter)\s+(20\d\d)\b"
+# Wording that scam messages use to rush a student into paying someone who isn't the university.
+SCAM_SIGNALS = (r"\b(urgent\w*|act now|today only|limited time|\d+\s?% off|discount|wechat|alipay|gift ?cards?|"
+                r"crypto|usdt|our agent|agent account|personal account|or (?:your )?(?:seat|enrol\w*) (?:is|will be) cancel\w*)\b"
+                r"|\b(can|could|should) (you|i) pay this\b|\bpay this\?")
+
+
+def _semester(text: str) -> str | None:
+    m = re.search(SEMESTER, text, re.I)
+    return f"{m.group(1).title()} {m.group(2)}" if m else None
+
+
 def _amount(text: str):
+    text = re.sub(SEMESTER, " ", text, flags=re.I)  # "Spring 2027" is a semester, not 2,027
     m = re.search(rf"{CUR}\s?{NUM}|{NUM}\s?{CUR}?", text, re.I)
     if not m:
         return None, None
@@ -37,10 +50,15 @@ def _status_line(result: dict) -> str:
     if s == "ERROR":
         return f"I couldn't do that: {result['error']}"
     risk = result.get("risk", {})
-    risk_txt = f" Risk: {risk.get('level')} ({risk.get('score', 0):.0%})." if risk else ""
+    risk_txt = f" Fraud risk is {risk.get('level', '').lower()} ({risk.get('score', 0):.0%})." if risk else ""
     if s == "AWAITING_VERIFICATION":
-        return (f"Prepared: {result['summary']}.{risk_txt} I sent you a notification. Please complete verification "
-                f"on your phone to complete the payment.")
+        convert = next((p for p in result.get("plan") or [] if p.get("step") == "convert"), None)
+        if convert:
+            pay = next(p for p in result["plan"] if p.get("step") == "pay")
+            return (f"You're {convert['receive']:,.0f} {convert['to']} short, so I'll convert {convert['amount']:,.0f} "
+                    f"{convert['from']} first, then pay {pay['amount']:,.0f} {pay['currency']}.{risk_txt} One verification "
+                    f"covers both. Please complete verification to complete the payment.")
+        return f"Ready: {result['summary']}.{risk_txt} Please complete verification to complete the payment."
     if s == "BLOCKED":
         rules = "; ".join(result["policy"]["rules"])
         reasons = "; ".join(r["text"] for r in risk.get("reasons", []))
@@ -58,18 +76,24 @@ def respond(db: Session, user: User, session_id: str, message: str, actions: lis
         return r
 
     long_paste = len(text) > 140 or "\n" in text
-    if long_paste or re.search(r"\b(is this (real|legit|a scam|safe)|scam\??|check this)\b", low):
+    if long_paste or re.search(SCAM_SIGNALS, low) or re.search(r"\b(is this (real|legit|a scam|safe)|scam\??|check this)\b", low):
         body = re.sub(r"^.*?(is this (real|legit|a scam|safe)\??|check this:?)", "", text, flags=re.I | re.S).strip() or text
         r = call("analyze_payment_request", text=body)
-        flags = "; ".join(f["explanation"] for f in r.get("red_flags", [])) or "no rule-based red flags found"
-        verdict = {"LIKELY_SCAM": "This looks like a SCAM.", "CAUTION": "Be careful with this request.",
-                   "NO_RED_FLAGS_FOUND": "I found no red flags."}[r["verdict"]]
+        n = len(r.get("red_flags", []))
+        verdict = {"LIKELY_SCAM": "I won't pay this. It looks like a scam",
+                   "CAUTION": "Be careful with this request",
+                   "NO_RED_FLAGS_FOUND": "I found no red flags in this message"}[r["verdict"]]
+        found = f": {n} red flag{'s' if n != 1 else ''}" if n else ""
         pv = r.get("payee_verification", {})
-        tail = f" Payee check: {pv.get('status')}." if pv.get("status") else ""
+        unverified = (" and the account isn't a verified university account"
+                      if pv.get("status") == "UNKNOWN" and n else
+                      ". The account isn't a verified university account" if pv.get("status") == "UNKNOWN" else "")
         op = r.get("second_opinion", {})
         ai = f" AI second opinion: {op['explanation']}" if op.get("available") else ""
-        return (f"{verdict} {flags}.{tail}{ai} Do not pay until it is verified with your university's "
-                f"official portal.")
+        advice = (" Don't pay it. Pay only through your university's official account."
+                  if r["verdict"] != "NO_RED_FLAGS_FOUND" else
+                  " Still, check the payee against your university's official portal before paying.")
+        return f"{verdict}{found}{unverified}.{ai}{advice}"
 
     m = re.search(rf"\b(?:every|each)\s+month\b.*?{NUM}\s?{CUR}?.*?\bto\s+(?:my\s+)?([a-z][\w .'-]{{1,40}}?)"
                   rf"(?:\s+on\s+(?:the\s+)?(\d{{1,2}})(?:st|nd|rd|th)?)?$", low)
@@ -88,7 +112,7 @@ def respond(db: Session, user: User, session_id: str, message: str, actions: lis
 
     if re.search(r"\b(tuition|semester fee|course fee|university fee)\b", low):
         amount, cur = _amount(text)
-        r = call("pay_tuition", amount=amount, currency=cur)
+        r = call("pay_tuition", amount=amount, currency=cur, semester=_semester(text))
         return _status_line(r)
 
     if re.search(r"\b(convert|exchange)\b", low):
