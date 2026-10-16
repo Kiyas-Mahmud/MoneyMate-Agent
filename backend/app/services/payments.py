@@ -346,6 +346,16 @@ def _get_open_action(db: Session, user: User, action_id: int) -> AgentAction:
     return a
 
 
+def expire_stale(db: Session, user_id: int) -> int:
+    """Marks verification requests whose time ran out as EXPIRED, so lists never show them as waiting."""
+    stale = [a for a in db.scalars(select(AgentAction).where(AgentAction.user_id == user_id,
+                                                           AgentAction.status == "AWAITING_VERIFICATION")).all()
+             if a.expires_at and _aware(a.expires_at) < _now()]
+    for a in stale:
+        _expire(db, a)
+    return len(stale)
+
+
 def _related_txs(db: Session, a: AgentAction) -> list[Transaction]:
     txs = [db.get(Transaction, a.transaction_id)]
     conv = (a.args or {}).get("convert")
