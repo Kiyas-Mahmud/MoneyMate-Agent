@@ -151,3 +151,20 @@ def test_short_scam_message_is_checked_not_paid(client, auth):
     assert [a["tool"] for a in resp["actions"]] == ["analyze_payment_request"]
     assert resp["actions"][0]["verdict"] == "LIKELY_SCAM"
     assert resp["reply"].startswith("I won't pay this")
+
+
+def test_single_action_and_history_carry_action_id(client, auth):
+    resp = chat(client, auth, "Pay my tuition", session_id="hist-1")
+    action_id = money_action(resp)["action_id"]
+    one = client.get(f"/api/agent/actions/{action_id}", headers=auth).json()
+    assert one["needs_verification"] and one["result"]["transaction"]["amount"] == 26000
+    history = client.get("/api/agent/sessions/hist-1/messages", headers=auth).json()
+    assert history[-1]["actions"][0]["action_id"] == action_id
+    assert client.get("/api/agent/actions/999999", headers=auth).status_code == 404
+
+
+def test_expiry_times_carry_a_utc_offset(client, auth):
+    action_id = money_action(chat(client, auth, "Pay my tuition"))["action_id"]
+    one = client.get(f"/api/agent/actions/{action_id}", headers=auth).json()
+    challenge = client.get(f"/api/agent/actions/{action_id}/challenge", headers=auth).json()
+    assert one["expires_at"].endswith("+00:00") and challenge["expires_at"].endswith("+00:00")
