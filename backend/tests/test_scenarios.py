@@ -197,3 +197,22 @@ def test_account_number_stops_before_words(client, auth):
     r = client.post("/api/scam-check", headers=auth, json={"text": text}).json()
     assert r["extracted"]["account"] == "6222 0099 1234 5678"
     assert r["verdict"] == "LIKELY_SCAM"
+
+
+def test_add_recipient_then_send_waits_for_verification(client, auth):
+    body = {"name": "Nusrat Jahan", "relationship": "Sister", "country": "Bangladesh", "bank_name": "Dutch-Bangla Bank",
+            "account_ref": "1234 5678 9012"}
+    r = client.post("/api/payees", headers=auth, json=body)
+    assert r.status_code == 201, r.text
+    p = r.json()
+    assert p["currency"] == "BDT" and p["relationship"] == "sister" and not p["verified"]
+    assert client.post("/api/payees", headers=auth, json=body).status_code == 409
+    assert client.post("/api/payees", headers=auth, json={**body, "account_ref": "999", }).status_code in (400, 422)
+    assert client.post("/api/payees", headers=auth, json={**body, "country": "Narnia",
+                                                          "account_ref": "5555666677"}).status_code == 400
+    names = [x["name"] for x in client.get("/api/payees", headers=auth).json()["recipients"]]
+    assert "Nusrat Jahan" in names
+    sent = client.post("/api/remittance/send", headers=auth,
+                       json={"recipient": "Nusrat Jahan", "amount": 500, "currency": "CNY"}).json()
+    assert sent["status"] in ("AWAITING_VERIFICATION", "BLOCKED")
+    assert sent["transaction"]["status"] != "COMPLETED"  # nothing moves without the student's verification
