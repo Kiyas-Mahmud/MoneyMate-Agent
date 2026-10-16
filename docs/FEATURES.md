@@ -195,6 +195,7 @@ wallets are left out. Reporting to credit bureaus would need licensed partners a
 | **Permission tiers** | T0 read · T2 verify (every movement of money: payments, transfers, conversions, scheduled payments) · T3 blocked. There is no auto-execute tier |
 | **Device verification** | A P-256 key in the phone's Android Keystore (StrongBox when available, otherwise the TEE), unlocked for each use by fingerprint / face unlock (Android BiometricPrompt), signs a one-time challenge for each payment. The server checks the signature, the owner and the expiry (15 min; 24 h for scheduled payments), and a signature cannot be reused. Adding a phone notifies the student. Only the student can approve; the AI cannot |
 | **Tamper-evident audit log** | Every agent action, decision, verification, reminder, monitor run and payment is recorded in a hash chain; any edit is detectable |
+| **Blockchain anchoring** | Every day the chain's latest hash is written to the Ethereum Sepolia test network (`POST /api/anchors/run` to do it now). Verification compares the log with the on-chain copy, so even a consistent rewrite of the whole log is caught. Receipts and payment history reports show "Secured on blockchain" with an explorer link. Only hashes go on-chain; test networks only; `GET /api/anchors` lists every anchor |
 
 ## Not included (removed on purpose)
 

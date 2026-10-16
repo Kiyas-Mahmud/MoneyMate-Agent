@@ -11,6 +11,7 @@ import '../../core/api.dart';
 import '../../core/config.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
+import '../../widgets/anchor_line.dart';
 import '../../widgets/background.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/glass.dart';
@@ -594,6 +595,10 @@ class _ReportCard extends StatelessWidget {
               ),
             ],
           ),
+          if (rep['anchor'] != null) ...[
+            const SizedBox(height: 10),
+            AnchorLine(anchor: Map<String, dynamic>.from(rep['anchor'] as Map)),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [

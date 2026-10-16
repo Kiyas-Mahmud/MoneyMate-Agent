@@ -74,9 +74,9 @@
   <text class="n" x="849" y="66">7</text>
   <text class="t" x="849" y="84">Audit</text>
   <text class="s" x="849" y="104">SHA-256 hash chain</text>
-  <text class="s" x="849" y="119">any edit to the past</text>
-  <text class="s" x="849" y="134">breaks the chain</text>
-  <text class="s" x="849" y="149">(checked in the app)</text>
+  <text class="s" x="849" y="119">head anchored daily</text>
+  <text class="s" x="849" y="134">on Ethereum Sepolia</text>
+  <text class="s" x="849" y="149">any rewrite is caught</text>
 
   <path class="arrow" d="M145,113 L154,113"/>
   <path class="arrow" d="M281,113 L290,113"/>

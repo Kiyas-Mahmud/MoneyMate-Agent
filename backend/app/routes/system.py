@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models import AuditLog, User
-from app.services import audit, payments, sandbox
+from app.services import anchor, audit, payments, sandbox
 from app.services.risk.engine import load_bundle
 from app.services.risk.features import FEATURE_NAMES
 from app.services.seed import reset_demo
@@ -32,7 +32,33 @@ def audit_log(limit: int = 100, user: User = Depends(get_current_user), db: Sess
 
 @router.get("/audit/verify")
 def audit_verify(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return audit.verify_chain(db)
+    """The hash chain, and every blockchain anchor compared with the log (fetched from the blockchain itself)."""
+    return anchor.full_check(db)
+
+
+@router.get("/anchors")
+def anchors(db: Session = Depends(get_db)):
+    """Public: where the audit log is anchored. Only hashes and transaction links, no personal data."""
+    from app.models import Anchor
+
+    rows = db.scalars(select(Anchor).order_by(Anchor.id.desc()).limit(50)).all()
+    return {"enabled": settings.ANCHOR_ENABLED, "chain": anchor.chain_name(), "chain_id": settings.ANCHOR_CHAIN_ID,
+            "wallet": anchor.wallet_address(), "explorer_url": settings.ANCHOR_EXPLORER_URL,
+            "anchors": [anchor.view(a) for a in rows]}
+
+
+@router.post("/anchors/run")
+def anchor_run(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Anchor now instead of waiting for the daily run (sandbox demo). Also confirms anchors already sent."""
+    if settings.ENVIRONMENT == "production":
+        raise HTTPException(400, "Anchoring runs on its daily schedule in production")
+    result = anchor.run(db)
+    try:
+        anchor.refresh(db)
+    except anchor.AnchorError:
+        pass
+    db.commit()
+    return result
 
 
 @router.get("/risk/model")

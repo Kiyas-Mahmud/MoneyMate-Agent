@@ -85,6 +85,16 @@ def run_all(today: date | None = None) -> list[dict]:
     return out
 
 
+def anchor_now() -> dict:
+    """After the morning routine: write the audit chain's latest hash to the test blockchain (if enabled)."""
+    from app.services import anchor
+
+    with SessionLocal() as db:
+        result = anchor.run(db)
+        db.commit()
+        return result
+
+
 def _seconds_until_next_run(now: datetime) -> float:
     target = now.replace(hour=settings.MONITOR_HOUR, minute=0, second=0, microsecond=0)
     if target <= now:
@@ -99,5 +109,7 @@ async def scheduler():
         try:
             results = await asyncio.to_thread(run_all)
             log.info("Daily monitor ran for %d students", len(results))
+            anchored = await asyncio.to_thread(anchor_now)
+            log.info("Audit anchoring: %s", anchored["status"])
         except Exception:
             log.exception("Daily monitor run failed")

@@ -84,3 +84,20 @@ class Notification(Base):
     data: Mapped[dict | None] = mapped_column(JSON)
     read: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class Anchor(Base):
+    """The audit chain's hash at entry `entry_id`, written to a public test blockchain in transaction `tx_hash`."""
+
+    __tablename__ = "audit_anchors"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entry_id: Mapped[int] = mapped_column(index=True)
+    head_hash: Mapped[str] = mapped_column(String(64))
+    chain_id: Mapped[int] = mapped_column()
+    tx_hash: Mapped[str | None] = mapped_column(String(66), unique=True)
+    block_number: Mapped[int | None] = mapped_column()
+    status: Mapped[str] = mapped_column(String(12), default="SENT")  # SENT | CONFIRMED | FAILED
+    error: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

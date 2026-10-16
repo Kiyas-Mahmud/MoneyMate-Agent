@@ -11,6 +11,7 @@ import '../../core/api.dart';
 import '../../core/config.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
+import '../../widgets/anchor_line.dart';
 import '../../widgets/background.dart';
 import '../../widgets/glass.dart';
 import '../../widgets/ui.dart';
@@ -320,6 +321,10 @@ class _ReceiptCard extends StatelessWidget {
               ),
             ),
           ),
+          if (r['anchor'] != null) ...[
+            const SizedBox(height: 10),
+            AnchorLine(anchor: Map<String, dynamic>.from(r['anchor'] as Map)),
+          ],
         ],
       ),
     ).enter(0);
