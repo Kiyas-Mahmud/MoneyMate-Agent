@@ -7,7 +7,9 @@ import re
 
 from sqlalchemy.orm import Session
 
-from app.models import User
+from sqlalchemy import select
+
+from app.models import Transaction, User
 from app.services.agent.tools import run_tool
 
 CUR = r"(usd|cny|rmb|bdt|cad|gbp|myr|eur|taka|yuan|dollars?|\$|¥|৳)"
@@ -95,6 +97,11 @@ def respond(db: Session, user: User, session_id: str, message: str, actions: lis
                   " Still, check the payee against your university's official portal before paying.")
         return f"{verdict}{found}{unverified}.{ai}{advice}"
 
+    if re.search(r"\b(stranger|someone i (?:don'?t|do not) know|unknown (?:sender|person)|money[- ]?mule|by mistake|"
+                 r"sent (?:to )?me (?:by )?(?:mistake|accident)|wrong(?:ly)? sent)\b", low) and \
+            re.search(r"\b(money|received|transfer|return|refund|send (?:it )?back|got)\b", low):
+        return _return_money_help(db, user)
+
     m = re.search(rf"\b(?:every|each)\s+month\b.*?{NUM}\s?{CUR}?.*?\bto\s+(?:my\s+)?([a-z][\w .'-]{{1,40}}?)"
                   rf"(?:\s+on\s+(?:the\s+)?(\d{{1,2}})(?:st|nd|rd|th)?)?$", low)
     if m:
@@ -162,3 +169,19 @@ def respond(db: Session, user: User, session_id: str, message: str, actions: lis
     return ("I can pay your tuition, remind you of deadlines, send money home, set up monthly payments, compare "
             "transfer fees, convert currencies, give payment receipts, or check if a payment request is a scam. "
             "Every payment waits for your verification. Try: \"pay my tuition\" or \"send 2000 CNY to mother\".")
+
+
+def _return_money_help(db: Session, user: User) -> str:
+    """Safe steps for money that arrived from a stranger. Prepares nothing: moving it on is the scam."""
+    incoming = db.scalars(select(Transaction).where(Transaction.user_id == user.id, Transaction.direction == "IN",
+                                                    Transaction.status == "COMPLETED")
+                          .order_by(Transaction.created_at.desc(), Transaction.id.desc())).all()
+    senders = [t.counterparty for t in incoming]
+    first_time = next((t for t in incoming if senders.count(t.counterparty) == 1), None)
+    what = (f"the {first_time.amount:,.0f} {first_time.currency} from {first_time.counterparty}" if first_time
+            else "money from someone you don't know")
+    return (f"Here's how to handle {what} safely. 1) Don't send it on to anyone, and don't send it \"back\" to a "
+            "different account: that is exactly how money-mule and overpayment scams work. 2) Ask your bank to "
+            "return it to the original sender (a recall or reversal); the bank sends it back through the same channel. "
+            "3) Keep the messages and report it to your bank and your university's international office. "
+            "MoneyMate will block any transfer that tries to forward this money.")
