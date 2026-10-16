@@ -16,6 +16,7 @@ String _plainName(String? s) => (s ?? '').replaceAll(RegExp(r'\s*\(.*\)$'), '');
 /// Picks the card for one tool result, or nothing for tools that only feed the reply text.
 Widget? actionCard(Map<String, dynamic> a) {
   final tool = a['tool'];
+  if (a['status'] == 'ERROR') return null; // a tool call the agent retried; the reply explains
   if (moneyTools.contains(tool) && a['transaction'] != null) return PaymentCard(action: a);
   return switch (tool) {
     'analyze_payment_request' => ScamCard(result: a),
