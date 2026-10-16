@@ -5,16 +5,15 @@ sends money home by the cheapest route, converts between wallets at live rates a
 anyone pays. **The agent prepares payments but can never send one: every payment waits for the student's
 fingerprint.**
 
-This is the Flutter app (Android only). The backend lives in the
-[MoneyMate-Agent](https://github.com/Kiyas-Mahmud/MoneyMate-Agent) repository.
+This is the Flutter app (Android only). The backend is in [`../backend`](../backend) of this repository.
 
 ![Agent chat](docs/screens/step4-agent.png)
 
 ## Run it
 
-1. Start the backend (see the backend README):
+1. Start the backend (see the [main README](../README.md)):
    ```bash
-   cd ../MoneyMate-Agent/backend && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+   cd ../backend && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
    ```
 2. Start an Android emulator (API 23+), then:
    ```bash
