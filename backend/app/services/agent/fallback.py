@@ -153,6 +153,20 @@ def respond(db: Session, user: User, session_id: str, message: str, actions: lis
         r = call("get_wallet_balances")
         return "Your balances: " + ", ".join(f"{b['balance']:,.2f} {b['currency']}" for b in r["balances"]) + "."
 
+    if re.search(r"\b(payment history|payment record|credit (history|record|score)|on[- ]time|rental history|"
+                 r"proof (that|of) (i|my) pa(y|id)|landlord (wants|asks|needs)|bank (wants|asks|needs))", low):
+        r = call("get_payment_history", months=6)
+        if r["status"] == "ERROR":
+            return _status_line(r)
+        s = r["summary"]
+        if not s["payments_due"]:
+            return ("You don't have a payment record yet. Pay rent and family support through MoneyMate and each "
+                    "on-time payment builds it. You can then share a verifiable report with a landlord or bank.")
+        parts = ", ".join(f"{c['name'].lower()} {c['on_time']} of {c['due']}" for c in r["categories"])
+        return (f"In the last 6 months you paid {s['on_time']} of {s['payments_due']} payments on time "
+                f"({s['on_time_rate']}%): {parts}. Open Profile → Payment history to issue a verifiable report: a PDF "
+                "with a QR code your landlord or bank can check. It's a payment record, not a credit score.")
+
     if re.search(r"\b(receipt|proof)\b", low):
         m = re.search(r"(?:transaction|tx|#)\s*#?(\d+)", low)
         r = call("get_payment_receipt", transaction_id=int(m.group(1)) if m else None)
