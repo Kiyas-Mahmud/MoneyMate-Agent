@@ -162,3 +162,54 @@ def test_second_opinion_failure_falls_back_to_rules(client, auth, monkeypatch):
     monkeypatch.setattr(so, "_call_gemini", fail)
     r = client.post("/api/scam-check", headers=auth, json={"text": FAKE_INVOICE}).json()
     assert r["second_opinion"]["available"] is False and r["verdict"] == "LIKELY_SCAM"
+
+
+class _FakeModels:
+    def __init__(self, fail):
+        self.fail, self.calls = fail, []
+
+    def generate_content(self, model, contents, config):
+        from google.genai import errors
+        self.calls.append(model)
+        if model in self.fail:
+            raise errors.ServerError(self.fail[model], {"error": {"code": self.fail[model], "message": "busy"}})
+        return f"answer from {model}"
+
+
+class _FakeClient:
+    def __init__(self, fail):
+        self.models = _FakeModels(fail)
+
+
+def test_gemini_falls_back_to_the_next_model_when_busy(monkeypatch):
+    from app.services.agent import gemini_client
+    monkeypatch.setattr(settings, "GEMINI_MODEL", "main-model")
+    monkeypatch.setattr(settings, "GEMINI_FALLBACK_MODELS", "backup-model")
+    monkeypatch.setattr(gemini_client, "_resting", {})
+    api = _FakeClient({"main-model": 503})
+    resp, i = gemini_client.generate(api, contents=[], config=None)
+    assert resp == "answer from backup-model" and i == 1
+    assert api.models.calls == ["main-model", "backup-model"]
+
+
+def test_gemini_raises_when_every_model_fails(monkeypatch):
+    import pytest
+    from google.genai import errors
+
+    from app.services.agent import gemini_client
+    monkeypatch.setattr(settings, "GEMINI_MODEL", "main-model")
+    monkeypatch.setattr(settings, "GEMINI_FALLBACK_MODELS", "backup-model")
+    monkeypatch.setattr(gemini_client, "_resting", {})
+    with pytest.raises(errors.ServerError):
+        gemini_client.generate(_FakeClient({"main-model": 503, "backup-model": 503}), contents=[], config=None)
+
+
+def test_a_busy_gemini_model_is_skipped_for_a_while(monkeypatch):
+    from app.services.agent import gemini_client
+    monkeypatch.setattr(settings, "GEMINI_MODEL", "main-model")
+    monkeypatch.setattr(settings, "GEMINI_FALLBACK_MODELS", "backup-model")
+    monkeypatch.setattr(gemini_client, "_resting", {})
+    gemini_client.generate(_FakeClient({"main-model": 503}), contents=[], config=None)
+    api = _FakeClient({})
+    gemini_client.generate(api, contents=[], config=None)
+    assert api.models.calls == ["backup-model"]  # the busy model is not retried straight away

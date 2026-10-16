@@ -24,7 +24,8 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000"
 
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MODEL: str = "gemini-3.8-flash"
+    GEMINI_FALLBACK_MODELS: str = "gemini-3.5-flash,gemini-3.7-flash,gemini-flash-latest,gemini-3.1-flash-lite"  # tried in order when the main model is busy or retired
 
     FX_LIVE: bool = True
     FX_API_URL: str = "https://open.er-api.com/v6/latest/USD"
