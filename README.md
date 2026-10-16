@@ -108,8 +108,7 @@ cp .env.example .env        # set JWT_SECRET_KEY; GEMINI_API_KEY is optional
 uvicorn app.main:app --port 8000
 ```
 
-The Android app is maintained separately and is not part of this repository (see
-[Android app](#android-app) below). Everything can be exercised through the interactive API docs at <http://localhost:8000/docs>: call `POST /api/auth/login`
+The Android app is in [`app/`](app/) (see [Android app](#android-app) below). Everything can be exercised through the interactive API docs at <http://localhost:8000/docs>: call `POST /api/auth/login`
 with the demo student `ayesha` (password = `DEMO_USER_PASSWORD` in `backend/.env`, default `Demo@2026`,
 sandbox only), click **Authorize** with the returned token, then try `POST /api/agent/chat` with
 `{"message": "Pay my tuition"}`. The answer is `AWAITING_VERIFICATION` with a two-step `plan` (convert BDT,
@@ -149,8 +148,9 @@ the same tools, so the demo always works.
 
 ### Android app
 
-The client is an Android app (Flutter UI, with a small Kotlin platform channel for the Keystore key and
-BiometricPrompt). [docs/ANDROID_INTEGRATION.md](docs/ANDROID_INTEGRATION.md) covers the key, FCM push and
+The client is an Android app in [`app/`](app/) (Flutter UI, with a small Kotlin platform channel for the
+Keystore key and BiometricPrompt); [app/README.md](app/README.md) explains how to run it and
+[app/docs/DEMO_SCRIPT.md](app/docs/DEMO_SCRIPT.md) is the five-minute demo. [docs/ANDROID_INTEGRATION.md](docs/ANDROID_INTEGRATION.md) covers the key, FCM push and
 every API call it makes. To run the backend for the phone, listen on all interfaces:
 
 ```bash
@@ -174,14 +174,17 @@ python -m ml.train_hybrid
 cd backend && python -m pytest -q
 ```
 
-51 tests, all passing. The tests play the phone with real key pairs: an Android-Keystore-style P-256 key
+64 backend tests, all passing (the app has its own 12 in `app/test`). The tests play the phone with real key pairs: an Android-Keystore-style P-256 key
 (`AndroidPhone` in `tests/conftest.py`) and an Ed25519 test-client key (`Phone`, used by the older tests).
 
-- **End-to-end scenarios** (`test_scenarios.py`, 12): tuition with a planned conversion and one
+- **End-to-end scenarios** (`test_scenarios.py`, 25): tuition with a planned conversion and one
   verification, fake-invoice impersonation block, even a small family transfer waits for verification
   (and sends the notification), crypto-to-stranger block, money-mule block, prompt injection in a pasted
   invoice, another user cannot verify, a blocked payment cannot be verified, provider ranking, audit-chain
-  tamper detection, authentication.
+  tamper detection, authentication; plus agent and API regressions: "Spring 2027" is not an amount, short
+  scam messages are checked instead of paid, money-mule job offers and seat-cancellation threats are
+  flagged, account numbers and OCR'd amounts are read correctly, saving a recipient, the exact shortfall
+  conversion, advice for returning a stranger's money, expired requests are not listed as waiting.
 - **Verification, scheduling and monitor** (`test_verification.py`, 13): no signature → 403, wrong
   signature, another student's phone, replayed signature, expired request, reject, conversion needs
   verification, sandbox mode works only when enabled, a standing instruction is prepared on its due day
@@ -222,6 +225,7 @@ backend/
   ml/                synthetic data generator, training pipeline, model artifact
   tests/             scenarios, verification / monitor tests, feature tests, Android key and push tests
 docs/                features, technical documentation, security self-assessment, Android integration guide
+app/                 Android app (Flutter + Kotlin Keystore channel), its tests and demo script
 ```
 
 ## Scope and honesty notes
@@ -233,8 +237,7 @@ docs/                features, technical documentation, security self-assessment
 - The deployed model is trained on synthetic data (see above).
 - The Gemini second opinion sends the pasted message text to Google's Gemini API; leave `GEMINI_API_KEY`
   empty to keep everything local.
-- Device verification is implemented on the server; the Android app that holds the key is a separate
-  client. The server cannot yet prove the key really sits in the Keystore behind a biometric (no key
+- Device verification is implemented on the server and in the Android app (`app/`), which holds the key. The server cannot yet prove the key really sits in the Keystore behind a biometric (no key
   attestation check), adding a phone needs only the login token (the student is notified, but there is no
   step-up), and there is no way to remove a phone or recover from a lost one. `VERIFICATION_MODE=sandbox`
   turns verification into a single API call; the server refuses to start with it when
