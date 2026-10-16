@@ -18,7 +18,9 @@ THREAT = r"\b(deport|visa (will be )?(cancel|revok)|arrest|police|immigration (o
 RISKY_CHANNEL = r"\b(bitcoin|btc|usdt|crypto|gift ?card|itunes|steam card|wechat (pay )?(transfer|to)|alipay to|western union to|personal account|money ?gram)\b"
 SECRECY = r"\b(don'?t tell|keep (this )?(secret|confidential)|do not contact (the )?(university|school))\b"
 AMOUNT = r"(?:(USD|CNY|RMB|BDT|CAD|GBP|MYR|EUR|\$|¥|৳|£)\s?([\d,]+(?:\.\d+)?)|([\d,]+(?:\.\d+)?)\s?(USD|CNY|RMB|BDT|CAD|GBP|MYR|EUR|yuan|taka|dollars?))"
-ACCOUNT = r"\b(?:account|a/c|acct|iban)(?:\s*(?:no\.?|number|#))?\s*[:#]?\s*([A-Z0-9][A-Z0-9\- ]{5,30}[A-Z0-9])"
+# Digit groups, optionally after an IBAN-style letter prefix ("GB29 NWBK 6016 ..." or "6222 0099 1234 5678").
+# Words are not part of the number: "... 5678 for a 5% discount" must stop at 5678.
+ACCOUNT = r"\b(?:account|a/c|acct|iban)(?:\s*(?:no\.?|number|#))?\s*[:#]?\s*((?:[A-Z]{2}\d{2}[ -]?(?:[A-Z]{4}[ -]?)?)?\d(?:[\d -]{4,30}\d)?)"
 
 CURRENCY_ALIASES = {"$": "USD", "dollar": "USD", "dollars": "USD", "¥": "CNY", "rmb": "CNY", "yuan": "CNY",
                     "৳": "BDT", "taka": "BDT", "£": "GBP"}

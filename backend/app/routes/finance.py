@@ -111,7 +111,7 @@ def invoices(user: User = Depends(get_current_user), db: Session = Depends(get_d
         payee = db.get(Payee, inv.payee_id)
         out.append({"id": inv.id, "semester": inv.semester, "amount": inv.amount, "currency": inv.currency,
                     "due_date": inv.due_date, "status": inv.status, "university": payee.name,
-                    "account_hint": "****" + payee.account_ref[-4:]})
+                    "account_hint": "****" + payee.account_ref[-4:], "transaction_id": inv.transaction_id})
     return out
 
 
