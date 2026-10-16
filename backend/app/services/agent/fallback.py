@@ -13,7 +13,7 @@ from app.models import Transaction, User
 from app.services.agent.tools import run_tool
 
 CUR = r"(usd|cny|rmb|bdt|cad|gbp|myr|eur|taka|yuan|dollars?|\$|¥|৳)"
-NUM = r"([\d,]+(?:\.\d+)?)"
+NUM = r"(\d[\d,]*(?:\.\d+)?)"  # starts with a digit, so a lone comma is not a number
 ALIASES = {"rmb": "CNY", "yuan": "CNY", "¥": "CNY", "taka": "BDT", "৳": "BDT", "$": "USD", "dollar": "USD",
            "dollars": "USD"}
 
@@ -81,6 +81,8 @@ def respond(db: Session, user: User, session_id: str, message: str, actions: lis
     if long_paste or re.search(SCAM_SIGNALS, low) or re.search(r"\b(is this (real|legit|a scam|safe)|scam\??|check this)\b", low):
         body = re.sub(r"^.*?(is this (real|legit|a scam|safe)\??|check this:?)", "", text, flags=re.I | re.S).strip() or text
         r = call("analyze_payment_request", text=body)
+        if r.get("status") == "ERROR":
+            return _status_line(r)
         n = len(r.get("red_flags", []))
         verdict = {"LIKELY_SCAM": "I won't pay this. It looks like a scam",
                    "CAUTION": "Be careful with this request",

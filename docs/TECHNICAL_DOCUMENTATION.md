@@ -52,7 +52,7 @@ flowchart TD
     UI -- "REST + JWT bearer" --> API["FastAPI backend<br/>/api/auth, /api/agent, finance, system routes"]
 
     API --> ORCH["Agent orchestrator<br/>orchestrator.py"]
-    ORCH -- "GEMINI_API_KEY set" --> GEM["Gemini function calling<br/>(gemini-2.5-flash, max 6 steps)"]
+    ORCH -- "GEMINI_API_KEY set" --> GEM["Gemini function calling<br/>(gemini-3.8-flash + fallback models, max 6 steps)"]
     ORCH -- "no key / quota / error" --> FB["Offline intent parser<br/>fallback.py"]
     GEM --> TOOLS["Tool layer: tools.py<br/>11 non-money tools (T0) + 3 money tools"]
     FB --> TOOLS
@@ -393,7 +393,7 @@ item on the roadmap.
 - **Every message** first computes the student's tuition reminders (§7.4). Those with an active stage are
   returned in the response's `reminders` field, whichever engine answers, so a client can show a
   deadline banner.
-- **With `GEMINI_API_KEY`:** Gemini (`gemini-2.5-flash` by default, temperature 0.2) receives a system
+- **With `GEMINI_API_KEY`:** Gemini (`gemini-3.8-flash` by default, with the fallback chain in `GEMINI_FALLBACK_MODELS`, temperature 0.2) receives a system
   prompt, the student's profile (name, countries, currencies, registered university and the text of any
   active tuition alerts), the last 12 messages of the session and the tool declarations. The prompt asks
   it to mention relevant tuition alerts and to give the receipt reference when a payment completes. It may

@@ -48,17 +48,17 @@ CACHE_SIZE = 128
 
 
 def _call_gemini(text: str) -> dict:
-    from google import genai
     from google.genai import types
 
-    client = genai.Client(api_key=settings.GEMINI_API_KEY)
-    resp = client.models.generate_content(
-        model=settings.GEMINI_MODEL,
+    from app.services.agent import gemini_client
+
+    resp, i = gemini_client.generate(
+        gemini_client.client(),
         contents=[types.Content(role="user", parts=[types.Part(text=f"<message>\n{text[:6000]}\n</message>")])],
         config=types.GenerateContentConfig(system_instruction=INSTRUCTION, temperature=0.1,
                                            response_mime_type="application/json", response_json_schema=SCHEMA),
     )
-    return json.loads(resp.text)
+    return {**json.loads(resp.text), "_model": gemini_client.models()[i]}
 
 
 def second_opinion(text: str) -> dict:
@@ -72,7 +72,8 @@ def second_opinion(text: str) -> dict:
         data = _call_gemini(text)
         if data.get("verdict") not in FROM_LLM:
             raise ValueError(f"unexpected verdict {data.get('verdict')!r}")
-        result = {"available": True, "engine": settings.GEMINI_MODEL, **data}
+        model = data.pop("_model", settings.GEMINI_MODEL)
+        result = {"available": True, "engine": model, **data}
     except Exception as e:  # quota, network, malformed output
         log.warning("Gemini second opinion failed: %s", e)
         return {"available": False, "reason": "Gemini second opinion is temporarily unavailable."}

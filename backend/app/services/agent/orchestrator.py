@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models import ChatMessage, Payee, User
 from app.services import reminders
-from app.services.agent import fallback
+from app.services.agent import fallback, gemini_client
 from app.services.agent.tools import DECLARATIONS, run_tool
 
 log = logging.getLogger(__name__)
@@ -75,10 +75,9 @@ def _history(db: Session, user: User, session_id: str, limit: int = 12):
 
 
 def _gemini_turn(db: Session, user: User, session_id: str, message: str, actions: list, alerts: list) -> str:
-    from google import genai
     from google.genai import types
 
-    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    client = gemini_client.client()
     tools = [types.Tool(function_declarations=[
         types.FunctionDeclaration(name=d["name"], description=d["description"], parameters_json_schema=d["parameters"])
         for d in DECLARATIONS])]
@@ -89,8 +88,9 @@ def _gemini_turn(db: Session, user: User, session_id: str, message: str, actions
                 for m in _history(db, user, session_id)]
     contents.append(types.Content(role="user", parts=[types.Part(text=message)]))
 
+    model = 0  # once a model answers, keep it for the rest of this turn
     for _ in range(MAX_STEPS):
-        response = client.models.generate_content(model=settings.GEMINI_MODEL, contents=contents, config=config)
+        response, model = gemini_client.generate(client, contents=contents, config=config, start=model)
         calls = response.function_calls or []
         if not calls:
             return (response.text or "").strip()

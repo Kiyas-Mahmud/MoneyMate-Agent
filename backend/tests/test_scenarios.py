@@ -252,3 +252,12 @@ def test_agent_explains_how_to_return_strangers_money(client, auth):
     resp = chat(client, auth, "I received money from a stranger. Help me return it safely.")
     assert "30,000 CNY from Global Remote Jobs Ltd" in resp["reply"]
     assert "bank" in resp["reply"] and not resp["actions"]  # advice only: nothing is prepared or sent
+
+
+def test_comma_before_currency_is_not_an_amount(client, auth):
+    text = ("Someone on WeChat says: URGENT, pay Spring 2027 tuition today with 15% discount, CNY 22,100 to our "
+            "agent account 6222 0011 2233 7788. Should I pay?")
+    r = client.post("/api/scam-check", headers=auth, json={"text": text}).json()
+    assert r["extracted"]["amount"] == 22100 and r["verdict"] == "LIKELY_SCAM"
+    resp = chat(client, auth, text)
+    assert resp["reply"].startswith("I won't pay this")
