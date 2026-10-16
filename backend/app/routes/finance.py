@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models import Payee, Transaction, TuitionInvoice, User
-from app.services import audit, payments, receipts, reminders, sandbox, verification
+from app.services import anchor, audit, payments, receipts, reminders, sandbox, verification
 from app.services.notify import notify
 from app.services.seed import CURRENCY_BY_COUNTRY
 from app.services.agent.second_opinion import analyze_with_second_opinion
@@ -196,7 +196,10 @@ def _own_tx(db: Session, user: User, tx_id: int) -> Transaction:
 @router.get("/transactions/{tx_id}/receipt")
 def receipt(tx_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
-        return receipts.build(db, _own_tx(db, user, tx_id))
+        tx = _own_tx(db, user, tx_id)
+        r = receipts.build(db, tx)
+        # Outside the signed fields: anchoring can happen after the receipt is issued.
+        return {**r, "anchor": anchor.status_for(db, user.id, "PAYMENT_VERIFIED", "transaction_id", tx.id)}
     except receipts.ReceiptError as e:
         raise HTTPException(400, str(e))
 
@@ -215,4 +218,8 @@ def receipt_pdf(tx_id: int, user: User = Depends(get_current_user), db: Session 
 @router.get("/receipts/verify")
 def verify_receipt(reference: str, code: str, db: Session = Depends(get_db)):
     """Public: lets a landlord, university or visa office check a receipt without logging in."""
-    return receipts.verify(db, reference, code)
+    result = receipts.verify(db, reference, code)
+    if result.get("valid"):
+        tx = db.get(Transaction, receipts._id_from_reference(reference))
+        result["anchor"] = anchor.status_for(db, tx.user_id, "PAYMENT_VERIFIED", "transaction_id", tx.id)
+    return result

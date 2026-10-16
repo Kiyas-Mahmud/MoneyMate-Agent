@@ -9,6 +9,8 @@ os.environ["DATABASE_URL"] = f"sqlite:///{_db.name}"
 os.environ["GEMINI_API_KEY"] = ""  # tests use the deterministic agent path
 os.environ["FX_LIVE"] = "false"   # no network in tests; live FX is tested with a mocked HTTP call
 os.environ["MONITOR_ENABLED"] = "false"  # the monitor is run explicitly in tests
+os.environ["ANCHOR_ENABLED"] = "false"   # no blockchain in tests; anchoring is tested with a fake chain
+os.environ["ANCHOR_PRIVATE_KEY"] = ""
 os.environ["VERIFICATION_MODE"] = "device"
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-not-for-production")
 

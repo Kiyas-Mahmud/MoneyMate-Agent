@@ -637,6 +637,11 @@ There is **no auto-execute tier**. The former T1 tier and its settings (`AUTO_EX
   returns a minimal set of fields and only when reference and code match (§7.5).
 - **Audit:** each event stores `SHA-256(prev_hash, timestamp, user, actor, event, tier, details)`;
   `GET /api/audit/verify` recomputes the chain and reports the first edited row.
+- **Blockchain anchoring:** the chain head is written daily to the Ethereum Sepolia test network as a zero-value
+  self-transaction carrying `MMA1` + entry id + hash (`backend/app/services/anchor.py`). `GET /api/audit/verify`
+  compares every confirmed anchor, fetched from the chain, with the log, so a consistent rewrite of anchored
+  history is detected. Test networks only, hashes only, never in the payment path. Details:
+  [`ARCHITECTURE_AND_SECURITY.md`](ARCHITECTURE_AND_SECURITY.md) §2.10.
 - **Data minimisation in responses:** account numbers are masked to the last four digits in transaction,
   payee and receipt views.
 

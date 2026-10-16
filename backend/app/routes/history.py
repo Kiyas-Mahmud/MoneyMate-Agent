@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models import PaymentReport, User
-from app.services import history
+from app.services import anchor, history
 
 router = APIRouter(prefix="/history", tags=["payment history"])
 
@@ -22,19 +22,24 @@ def preview(months: int = Query(default=6, ge=1, le=12), user: User = Depends(ge
     return history.build(db, user, months)
 
 
+def _with_anchor(db: Session, rep: PaymentReport) -> dict:
+    return {**history.view(rep),
+            "anchor": anchor.status_for(db, rep.user_id, "HISTORY_REPORT_ISSUED", "reference", rep.reference)}
+
+
 @router.post("/reports", status_code=201)
 def issue(body: IssueIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Issue a verifiable report: a snapshot with a reference and a verification code."""
     rep = history.issue(db, user, body.months)
     db.commit()
-    return history.view(rep)
+    return _with_anchor(db, rep)
 
 
 @router.get("/reports")
 def reports(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows = db.scalars(select(PaymentReport).where(PaymentReport.user_id == user.id)
                       .order_by(PaymentReport.id.desc()).limit(10)).all()
-    return [history.view(r) for r in rows]
+    return [_with_anchor(db, r) for r in rows]
 
 
 @router.get("/reports/{reference}/pdf")
@@ -49,4 +54,8 @@ def report_pdf(reference: str, user: User = Depends(get_current_user), db: Sessi
 @router.get("/verify")
 def verify(reference: str, code: str, db: Session = Depends(get_db)):
     """Public: anyone holding the reference and code can check the report is genuine. Summary only."""
-    return history.verify(db, reference, code)
+    result = history.verify(db, reference, code)
+    if result.get("valid"):
+        rep = history.find(db, reference)
+        result["anchor"] = anchor.status_for(db, rep.user_id, "HISTORY_REPORT_ISSUED", "reference", rep.reference)
+    return result

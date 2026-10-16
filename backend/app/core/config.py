@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     FCM_PROJECT_ID: str = ""
     FCM_SERVICE_ACCOUNT_FILE: str = ""  # path to the Firebase service-account JSON (never commit it)
 
+    # Audit-log anchoring: the audit chain's latest hash is written to a public Ethereum TEST network, so a
+    # rewritten log no longer matches. Off unless ANCHOR_ENABLED and a test wallet key are set (never commit it).
+    ANCHOR_ENABLED: bool = False
+    ANCHOR_PRIVATE_KEY: str = ""
+    ANCHOR_CHAIN_ID: int = 11155111                       # Ethereum Sepolia; mainnets are refused
+    ANCHOR_RPC_URLS: str = "https://ethereum-sepolia-rpc.publicnode.com,https://1rpc.io/sepolia"
+    ANCHOR_EXPLORER_URL: str = "https://sepolia.etherscan.io"
+
     DEMO_USER_PASSWORD: str = "Demo@2026"
 
     # Receipts: HMAC key for verification codes (defaults to a key derived from JWT_SECRET_KEY)

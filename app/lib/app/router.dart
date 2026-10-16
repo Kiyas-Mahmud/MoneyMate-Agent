@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/session.dart';
 import '../features/activity/activity.dart';
+import '../features/activity/integrity_sheet.dart';
 import '../features/activity/tx_sheet.dart';
 import '../features/agent/agent.dart';
 import '../features/auth/login.dart';
@@ -92,6 +93,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             : fadeThroughPage(s, const ActivityScreen()),
       ),
       GoRoute(path: '/history', pageBuilder: (c, s) => sharedAxisPage(s, const HistoryScreen())),
+      GoRoute(path: '/integrity', pageBuilder: (c, s) => sheetPage(s, const IntegritySheet())),
       GoRoute(path: '/standing', pageBuilder: (c, s) => sharedAxisPage(s, const StandingScreen())),
       GoRoute(path: '/standing/new', pageBuilder: (c, s) => sheetPage(s, const NewStandingSheet())),
       GoRoute(path: '/protection', pageBuilder: (c, s) => sheetPage(s, const ProtectionSheet())),

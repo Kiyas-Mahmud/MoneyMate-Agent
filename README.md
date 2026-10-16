@@ -23,6 +23,7 @@ Built for the 2026 Shenzhen International FinTech Competition (FinTechathon), In
 | **Multi-currency management** | BDT / CNY / USD wallets and conversion at live mid-market rates (ExchangeRate-API, hourly; snapshot fallback). Conversions are verified like payments. |
 | **Scam check** | Paste any invoice, email or message: rule-based red flags (urgency, discounts, threats, crypto / gift cards, secrecy, impersonated accounts) plus a Gemini second opinion that can raise, never lower, the warning. |
 | **Credit building** | "My landlord wants proof I pay rent on time" → a payment history report: rent, family support and tuition marked on time, late or missed over 3–12 months, shared as a PDF with a QR verification code. A real payment record for students with no local credit history, not a credit score. |
+| **On-chain audit anchor** | Every day the audit log's latest hash is written to the Ethereum Sepolia test network, so nobody can rewrite payment history unnoticed, not even someone with database access. Receipts and reports link to the transaction on sepolia.etherscan.io. Only hashes go on-chain. First real anchor: [evidence](docs/evidence/ONCHAIN_ANCHOR.md). |
 | **Payment proof** | Every completed payment gets a receipt (reference, details, PDF) with an HMAC verification code that anyone can check at a public link; any change to the payment invalidates it. |
 
 ## How a request is handled
@@ -175,7 +176,7 @@ python -m ml.train_hybrid
 cd backend && python -m pytest -q
 ```
 
-76 backend tests, all passing (the app has its own 12 in `app/test`). The tests play the phone with real key pairs: an Android-Keystore-style P-256 key
+85 backend tests, all passing (the app has its own 15 in `app/test`). The tests play the phone with real key pairs: an Android-Keystore-style P-256 key
 (`AndroidPhone` in `tests/conftest.py`) and an Ed25519 test-client key (`Phone`, used by the older tests).
 
 - **End-to-end scenarios** (`test_scenarios.py`, 26): tuition with a planned conversion and one
@@ -195,6 +196,9 @@ cd backend && python -m pytest -q
   verification and tamper detection, receipt PDF, no receipt before verification, receipt access control,
   live FX with offline fallback, and the Gemini second opinion (escalates, never downgrades, falls back on
   errors) with a mocked model.
+- **Blockchain anchoring** (`test_anchor.py`, 9, against a fake chain): the anchor transaction carries the audit
+  head, a consistently rewritten log is caught, mainnet and a wrong-chain endpoint are refused, an empty wallet
+  sends nothing, the chain being down never breaks a payment, receipts report pending then anchored.
 - **Payment history** (`test_history.py`, 8): rent, family support and tuition counted on time / late / missed, a
   month without rent is missed, an issued report verifies publicly without revealing payees, it stays valid
   after new payments, the PDF is private to its owner, a new student starts empty, the agent explains it.

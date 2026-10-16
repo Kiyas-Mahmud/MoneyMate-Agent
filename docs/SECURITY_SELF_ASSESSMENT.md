@@ -223,8 +223,42 @@ trade-off is that the app must keep the token out of logs, backups and other app
 **Test:** `test_audit_chain_detects_tampering` edits one row's `details` directly in the database and confirms
 verification fails, then restores it and confirms verification passes.
 
-What the chain proves: that rows were not edited or removed **without recomputing every later hash**. It
-does not stop someone with write access to the database from rewriting the whole chain (R-10).
+What the chain proves: that rows were not edited or removed **without recomputing every later hash**. On its
+own it does not stop someone with write access to the database from rewriting the whole chain consistently.
+
+### 6.1 Blockchain anchoring (`backend/app/services/anchor.py`)
+
+Anchoring closes that gap (R-10). The latest audit entry's hash is written to a public Ethereum **test**
+network (Sepolia by default), which nobody, including us, can change afterwards.
+
+- **What goes on-chain:** a zero-value transaction from the anchor wallet to itself whose data field is 44
+  bytes: `"MMA1"` + entry id (8 bytes) + that entry's SHA-256 hash. Each hash covers every earlier entry, so one
+  anchor protects the whole history up to it. No personal data, amounts or names go on-chain.
+- **When:** after the daily monitor run, only if there are new entries; `POST /api/anchors/run` anchors on
+  demand (refused when `ENVIRONMENT=production`). Anchoring never sits in the payment path: a failure
+  (network, empty wallet) is reported and retried next time, and payments are unaffected.
+- **Checking:** `GET /api/audit/verify` now returns `valid` only if the hash chain holds **and** every
+  confirmed anchor, fetched from the blockchain itself, matches the log: same entry, same hash, sent by the
+  anchor wallet. A consistently rewritten log passes the chain check but fails the anchor check. If the
+  blockchain can't be reached, the result says `unavailable` rather than claiming a match.
+- **Guards:** only allow-listed test chain ids (Sepolia, Holesky, Amoy, Base Sepolia, local); the endpoint's
+  `eth_chainId` must match the configured chain. The wallet key lives in `backend/.env` (git-ignored), holds
+  only free test ETH and is never logged. Anchor events are not written back into the audit log, which would
+  make every anchor create a new entry to anchor.
+- **Public view:** `GET /api/anchors` lists anchors with explorer links. Receipts and payment history reports
+  show whether the entry for their payment or report is covered by an anchor ("Secured on blockchain"), and
+  the public receipt and report checks include it.
+
+**Tests (`tests/test_anchor.py`, 9, against a fake chain):** the transaction carries the right payload and is
+sent from and to the anchor wallet; nothing new means no new transaction; **a consistently rewritten log is
+caught** (the plain chain check is fooled, the anchor check is not); mainnet is refused; an endpoint on the
+wrong chain is refused; an empty wallet sends nothing; the blockchain being down neither breaks a payment nor
+fakes a match; a receipt reports pending, then anchored; anchoring is off by default.
+
+**Remaining limits:** entries after the latest anchor are protected only by the chain itself until the next
+anchor (at most one day); the anchor wallet key is a server secret, so whoever holds it can add anchors (but not
+change existing ones); a test network has no service guarantee. Production would anchor to a mainnet or a
+regulated timestamping service, with the key in a hardware security module.
 
 ---
 
@@ -351,7 +385,7 @@ nothing of value is at risk.
 | R-07 | **Regex-based scam detection** (partly mitigated) | Medium | English keyword patterns (`verification.py:15-20`) miss paraphrases, images and other languages (Chinese, Bengali), and can flag harmless text (e.g. a message that mentions "police"). The Gemini second opinion (§7.3) can now raise the scam-check verdict for wording the rules miss, but it never lowers it, it only runs when a key is set, its accuracy is unmeasured, and payment risk (`pressure_flags`) still uses the rules alone. | Multilingual rules; evaluate the second opinion on labelled scam messages; consider letting it raise (never lower) payment risk; feedback loop from reported scams. | `test_fake_tuition_invoice_is_flagged_and_blocked`, `test_second_opinion_can_escalate`, `test_second_opinion_never_downgrades` |
 | R-08 | **Device verification: remaining gaps** (was "no MFA for confirmations"; now largely mitigated) | Medium | Every payment now needs a signature from a registered Android Keystore P-256 key, one-time per payment, owner-checked and time-limited (§3), so a stolen token or password alone can no longer approve a payment that is already waiting. What remains: (1) **enrolment is protected only by the login token**: `POST /api/devices` (`mobile.py:39-50`) accepts any valid P-256 (or Ed25519) public key, so whoever holds a stolen token (R-01) can register their own key and then verify. The student is now told: a `DEVICE_ADDED` notification is created in the app and, with push on, sent to every phone with a push token (`mobile.py:47-48`). There is still no step-up, no waiting period and no limit on devices. (2) **No key attestation check**: the server does not ask for or verify the Android Keystore attestation certificate chain, so it cannot tell a StrongBox / TEE key that needs BiometricPrompt from a software key (`key_type: "ed25519"` is software by definition and is accepted for test clients); the biometric protection is a property of the app, not checked by the server. (3) **No lost-phone flow**: no endpoint removes a device, and there is no recovery or re-enrolment procedure (a new biometric enrolment invalidates the key on the phone, but the server keeps the old public key). (4) The signed text binds the action ID and nonce, not the amount and payee; the phone shows the summary the server returns, so the guarantee relies on the server's stored action. (5) Sandbox mode bypasses all of this (R-28). | Require step-up (a signature from an existing phone, or e-mail / SMS code plus a waiting period) to enrol a new phone; verify the Keystore attestation chain at enrolment (hardware-backed, user authentication required) plus Play Integrity, and stop accepting Ed25519 outside development; device removal and a recovery flow with identity checks; include amount and payee in the signed text. | `test_no_signature_no_payment`, `test_wrong_signature_is_rejected`, `test_another_users_phone_cannot_verify`, `test_signature_cannot_be_replayed`, `test_expired_request_cannot_be_verified`, `test_android_keystore_p256_key_verifies_payment`, `test_p256_signature_for_other_payment_fails`, `test_wrong_curve_is_refused`, `test_new_phone_triggers_alert` |
 | R-09 | **Gemini data handling and free-tier quotas** | Medium | When a key is set, the student's name, countries, university, active tuition alerts (invoice amount, due date, wallet shortfall), last 12 chat messages and trimmed tool results (amounts, counterparty names) are sent to Google (`orchestrator.py:50-55`, `orchestrator.py:85-90`, `orchestrator.py:100-102`). Google's terms for unpaid Gemini API use allow content to be used to improve its products. Free-tier quotas run out; the code falls back to the offline parser (`orchestrator.py:113-123`). | Paid tier or a data-processing agreement before any real data; minimise and pseudonymise the profile; keep the offline path as the outage fallback. | – (tests run the offline path) |
-| R-10 | **Audit chain is not externally anchored and not locked** | Medium | A database administrator can rewrite the whole chain consistently. `record` reads the last hash without a lock (`audit.py:19`), so concurrent writers on a multi-process server could fork the chain, which `verify` would then report as broken. | Periodically publish or sign the chain head (e.g. to write-once storage); serialise audit writes or use a DB sequence with row locking. | `test_audit_chain_detects_tampering` |
+| R-10 | **Audit chain rewrite and locking** (rewrite now mitigated) | Low | **Mitigated:** the chain head is anchored daily on a public test blockchain and `/api/audit/verify` compares the log with the on-chain copy (§6.1), so a consistent rewrite of anchored history is detected. **Remaining:** entries after the latest anchor (up to a day) rely on the chain alone; `record` reads the last hash without a lock (`audit.py:19`), so concurrent writers on a multi-process server could fork the chain, which `verify` would then report as broken. | Anchor after every verified payment as well as daily; serialise audit writes or use a DB sequence with row locking. | `test_audit_chain_detects_tampering`, `test_a_consistently_rewritten_log_is_caught_by_the_anchor` |
 | R-11 | **CORS misconfiguration** | Low | The default is restrictive (one origin, no credentials, GET/POST only). The risk is an operator setting `CORS_ORIGINS=*` or adding untrusted origins. | Document allowed origins per environment; refuse `*` outside development. | – |
 | R-12 | **Prompt injection on the Gemini path is untested** | Medium | The structural controls in §4 apply, but the LLM can still be persuaded to *start* an action (e.g. a remittance to an attacker), to omit `request_text` so pressure flags are not counted, or to describe a status inaccurately in its reply text. The action card and the notification show the real status, and every payment needs the phone's verification, so the remaining risk is a student being socially engineered into verifying. | Automated adversarial tests against Gemini; always run red-flag analysis on the raw user message server-side, not only when the model passes `request_text`; show red flags on the verification screen. | `test_prompt_injection_in_invoice_cannot_approve_payment` (offline path) |
 | R-13 | **Sandbox-only endpoints are enabled** | High if deployed | `POST /api/sandbox/incoming` lets any signed-in user credit their own wallet, and `/api/sandbox/reset` restores the demo (`system.py:49-65`). Both are needed for the demo and are not switched off by `ENVIRONMENT`. Only the simulated date on `POST /api/monitor/run` is refused in production (`mobile.py:131-132`). | Disable both outside `ENVIRONMENT=development`. | Used by `test_money_mule_pass_through_is_blocked`, `test_money_from_stranger_triggers_mule_alert` and the test fixture |
@@ -385,7 +419,7 @@ nothing of value is at risk.
 | Android key and push | P-256 Keystore-style key verifies a payment, P-256 signature for another payment fails, wrong curve refused, new phone alert, push token rotation, FCM message format (mocked token and HTTP), push failure does not break the payment (`test_android.py`, 7 tests) | Real Keystore / StrongBox / BiometricPrompt behaviour (in the app), key attestation (not implemented), real FCM delivery |
 | Prompt injection | Offline parser path | Gemini path |
 | Auth | Missing token rejected | Expired / forged token, rate limiting |
-| Audit | Tamper detection; reminder stage logged once | Concurrent writes |
+| Audit | Tamper detection; reminder stage logged once; blockchain anchoring (payload, consistent rewrite caught, mainnet and wrong chain refused, empty wallet, chain down, receipts) | Concurrent writes; real Sepolia confirmation timing |
 | Standing instructions and monitor | Prepared on the due day and waits, not prepared twice, created by chat, mule alert (no duplicate), tuition reminder notified once, notifications marked read | Low-balance alert, wallet-short scheduled payment, scheduler timing |
 | Receipts | Issued on completion, public verification, tampered amount rejected, no receipt for blocked, 404 for another user | Key rotation, restart with unset `JWT_SECRET_KEY`, brute force / rate limiting |
 | Exchange rates | Live rates used when the API answers (stubbed); snapshot when it is down | Cache expiry, retry back-off, implausible API values |

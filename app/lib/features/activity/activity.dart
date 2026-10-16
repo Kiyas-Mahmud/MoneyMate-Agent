@@ -276,13 +276,7 @@ class _LogChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Pressable(
-    onTap: () => toast(
-      context,
-      intact
-          ? 'Audit log intact: all $entries records check out. Any edit would break the hash chain.'
-          : 'The audit log does not check out. A past record was changed.',
-      error: !intact,
-    ),
+    onTap: () => context.push('/integrity'),
     child: Glass(
       radius: AppRadius.pill,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

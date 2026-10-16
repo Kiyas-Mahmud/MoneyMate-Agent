@@ -42,7 +42,7 @@ MoneyMate has three parts:
   permission policy, device verification, the daily monitor, receipts and the audit log.
 - **External services** are kept to a minimum: Google Gemini (optional) for the agent and the scam second
   opinion, ExchangeRate-API for live exchange rates, and Firebase Cloud Messaging (optional) for push
-  notifications. Anyone can check a receipt's code without signing in.
+  notifications, and the Ethereum Sepolia test network to anchor the audit log. Anyone can check a receipt's code without signing in.
 
 ### 1.2 Components
 
@@ -61,7 +61,7 @@ MoneyMate has three parts:
 | Daily monitor | Every morning: deadlines, scheduled payments, money from new senders, low balance | asyncio scheduler | `backend/app/services/monitor.py` |
 | Notifications | In-app list; optional push | FCM HTTP v1 | `backend/app/services/notify.py` |
 | Receipts | Receipt with an HMAC-SHA256 verification code; PDF | ReportLab | `backend/app/services/receipts.py` |
-| Audit log | Append-only SHA-256 hash chain of every action | Python | `backend/app/services/audit.py` |
+| Audit log | Append-only SHA-256 hash chain of every action; daily anchor on Ethereum Sepolia | Python, `eth-account` | `backend/app/services/audit.py`, `backend/app/services/anchor.py` |
 | Database | Users, wallets, payees, invoices, transactions, actions, devices | SQLAlchemy 2; SQLite by default | `backend/app/models/` |
 
 ### 1.3 One pipeline for the agent, the screens and the monitor
@@ -162,7 +162,7 @@ reach a laptop on the same network; release builds do not allow plain HTTP.
 | Stolen or unlocked phone | Someone has the phone but not the fingerprint | The key needs a strong biometric for every signature |
 | Replay | Re-sending an old approval | One-time challenge, cleared after use; requests expire |
 | Approving the wrong thing | A signature reused for another payment | The challenge names the payment (`moneymate-verify:{id}:{nonce}`) |
-| Insider edits records | Changing a past transaction in the database | Hash-chained audit log; receipt codes break if the payment changes |
+| Insider edits records | Changing a past transaction in the database, even rewriting the whole log consistently | Hash-chained audit log anchored daily on a public test blockchain; receipt codes break if the payment changes |
 | Forged receipt | Editing a PDF to show a larger payment | HMAC verification code checked by the backend |
 | Wrong or manipulated AI answer | The AI says a scam "looks fine" | The AI can only raise a warning; payments never depend on its opinion |
 
@@ -265,7 +265,25 @@ exists for API demos only; the server refuses to start with it in production.
   (shown as a QR code). Any change to the payment makes the code fail. The public check returns only a
   minimal set of fields.
 
-### 2.10 Data protection and privacy
+### 2.10 Blockchain anchoring of the audit log
+
+The audit log's hash chain shows any edit **unless** someone rewrites the whole chain consistently, which a
+database administrator could do. To close that gap, MoneyMate writes the latest entry's hash to a public
+Ethereum **test** network (Sepolia) once a day:
+
+- The transaction is a zero-value transfer from the anchor wallet to itself. Its data field holds 44 bytes:
+  `MMA1` + entry number + the entry's SHA-256 hash. One anchor covers every earlier entry, including every
+  verified payment and every issued payment history report.
+- `GET /api/audit/verify` compares each anchor, **fetched from the blockchain itself**, with the log. A
+  rewritten log no longer matches, and the app's **Log intact** chip turns into **Log altered**.
+- Only test networks are allowed, only hashes go on-chain, the wallet key never leaves the server's
+  environment, and a blockchain outage never affects payments.
+- Receipts and payment history reports show **Secured on blockchain** with a link to the transaction on
+  sepolia.etherscan.io, so a landlord or visa office has independent proof that the record existed unchanged.
+
+Code: `backend/app/services/anchor.py`; app: `app/lib/features/activity/integrity_sheet.dart`.
+
+### 2.11 Data protection and privacy
 
 | Data | How it is handled |
 |---|---|
@@ -277,7 +295,7 @@ exists for API demos only; the server refuses to start with it in production.
 | Push notifications | Off unless configured. When on, notification titles and bodies pass through Firebase Cloud Messaging |
 | Secrets | JWT and receipt keys live in the server environment, never in the app or the repository |
 
-### 2.11 Residual risks and next steps
+### 2.12 Residual risks and next steps
 
 We list what is **not** solved yet. Full list with severity: [security self-assessment](SECURITY_SELF_ASSESSMENT.md), section 8.
 
@@ -292,9 +310,9 @@ We list what is **not** solved yet. Full list with severity: [security self-asse
 | Transport | Plain HTTP in the local demo | TLS at the reverse proxy; HSTS |
 | Real-phone proof | Fingerprint approval is implemented and reaches the system prompt; not yet recorded on a real phone | Record on a real device before the final |
 
-### 2.12 Evidence
+### 2.13 Evidence
 
-Security controls are covered by automated tests: **64 backend tests** (`cd backend && pytest -q`) and **12 app
+Security controls are covered by automated tests: **85 backend tests** (`cd backend && pytest -q`) and **15 app
 tests** (`cd app && flutter test`), all passing on 16 October 2026.
 
 | Control | Test (backend `tests/`) |
@@ -308,6 +326,7 @@ tests** (`cd app && flutter test`), all passing on 16 October 2026.
 | Prompt injection | `test_prompt_injection_in_invoice_cannot_approve_payment` |
 | AI can only escalate | `test_second_opinion_can_escalate`, `test_second_opinion_never_downgrades` |
 | Audit and receipts | `test_audit_chain_detects_tampering`, `test_altered_payment_invalidates_receipt`, `test_receipt_of_other_users_transaction_is_hidden` |
+| Blockchain anchoring | `test_a_consistently_rewritten_log_is_caught_by_the_anchor`, `test_mainnet_is_refused`, `test_blockchain_down_never_breaks_payments` |
 | Alerts | `test_new_phone_triggers_alert`, `test_money_from_stranger_triggers_mule_alert` |
 | Authentication | `test_requires_authentication` |
 

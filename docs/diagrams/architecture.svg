@@ -109,7 +109,7 @@
   <rect class="box" x="480" y="464" width="120" height="64" rx="14"/>
   <text class="t" x="492" y="486">Audit log</text>
   <text class="s" x="492" y="502">SHA-256 hash</text>
-  <text class="s" x="492" y="516">chain</text>
+  <text class="s" x="492" y="516">chain · anchored</text>
 
   <rect class="box" x="610" y="464" width="120" height="64" rx="14"/>
   <text class="t" x="622" y="486">Database</text>
@@ -131,6 +131,11 @@
   <text class="s" x="804" y="234">live mid-market rates</text>
   <text class="s" x="804" y="248">1 h cache, snapshot fallback</text>
 
+  <rect class="ext" x="790" y="292" width="170" height="64" rx="14"/>
+  <text class="t" x="804" y="314">Ethereum Sepolia</text>
+  <text class="s" x="804" y="330">test blockchain: daily</text>
+  <text class="s" x="804" y="344">audit-log anchor (hash)</text>
+
   <rect class="ext" x="790" y="388" width="170" height="64" rx="14"/>
   <text class="t" x="804" y="410">Firebase Cloud Msg</text>
   <text class="s" x="804" y="426">optional push to the</text>
@@ -151,6 +156,7 @@
   <path class="arrow" d="M442,166 L442,160 L740,160 C765,160 765,136 788,136"/>
   <path class="arrow" d="M750,228 L788,228"/>
   <path class="arrow" d="M730,420 L788,420"/>
+  <path class="arrow" d="M540,528 L540,538 L742,538 L742,324 L788,324"/>
   <path class="dash" d="M790,500 L768,500 L768,147 L732,147"/>
   <text class="lbl" x="762" y="330" text-anchor="middle" transform="rotate(-90 762 330)">check a receipt code</text>
 
