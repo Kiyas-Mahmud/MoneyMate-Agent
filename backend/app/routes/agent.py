@@ -29,7 +29,8 @@ def messages(session_id: str, user: User = Depends(get_current_user), db: Sessio
     actions = {a.id: a for a in db.scalars(select(AgentAction).where(AgentAction.user_id == user.id,
                                                                     AgentAction.session_id == session_id)).all()}
     return [{"role": m.role, "content": m.content, "created_at": m.created_at.isoformat() if m.created_at else None,
-             "actions": [{"tool": actions[i].tool, **(actions[i].result or {}), "status": actions[i].status}
+             "actions": [{"tool": actions[i].tool, **(actions[i].result or {}), "status": actions[i].status,
+                          "action_id": i}
                          for i in (m.action_ids or []) if i in actions]} for m in rows]
 
 
@@ -41,6 +42,15 @@ def list_actions(status: str | None = None, limit: int = 50, user: User = Depend
         q = q.where(AgentAction.status == status)
     rows = db.scalars(q.order_by(AgentAction.id.desc()).limit(min(limit, 200))).all()
     return [payments.action_view(a) for a in rows]
+
+
+@router.get("/actions/{action_id}")
+def get_action(action_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """One action, e.g. for the verify sheet opened from a notification."""
+    a = db.get(AgentAction, action_id)
+    if a is None or a.user_id != user.id:
+        raise HTTPException(404, "Action not found")
+    return payments.action_view(a)
 
 
 class VerifyIn(BaseModel):

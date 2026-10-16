@@ -28,6 +28,11 @@ class PaymentError(ValueError):
     pass
 
 
+def _iso(dt: datetime | None) -> str | None:
+    """ISO time with an explicit UTC offset (SQLite hands datetimes back without their timezone)."""
+    return None if dt is None else (dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)).isoformat()
+
+
 def _now():
     return datetime.now(timezone.utc)
 
@@ -54,7 +59,7 @@ def action_view(a: AgentAction) -> dict:
     return {"id": a.id, "tool": a.tool, "tier": a.tier, "status": a.status, "summary": a.summary,
             "transaction_id": a.transaction_id, "result": a.result,
             "needs_verification": a.status == "AWAITING_VERIFICATION",
-            "expires_at": a.expires_at.isoformat() if a.expires_at else None,
+            "expires_at": _iso(a.expires_at),
             "created_at": a.created_at.isoformat() if a.created_at else None}
 
 
@@ -75,7 +80,7 @@ def _await_verification(db: Session, user: User, action: AgentAction, txs: list[
     prefix = "Scheduled payment ready. " if initiated_by == "SCHEDULE" else ""
     notify(db, user.id, kind="VERIFY_PAYMENT", title="Verify to complete your payment",
            body=f"{prefix}{action.summary}. Please complete verification to complete the payment.",
-           action_id=action.id, data={"expires_at": action.expires_at.isoformat()})
+           action_id=action.id, data={"expires_at": _iso(action.expires_at)})
 
 
 def _finalize(db: Session, user: User, *, session_id: str, tool: str, args: dict, tx: Transaction,
@@ -102,7 +107,7 @@ def _finalize(db: Session, user: User, *, session_id: str, tool: str, args: dict
     result = {"status": action.status, "summary": summary, "policy": decision.as_dict(),
               "risk": {k: risk[k] for k in ("score", "level", "reasons", "protective_factors", "model_scores")},
               "transaction": tx_view(tx), "action_id": action.id,
-              "expires_at": action.expires_at.isoformat() if action.expires_at else None, **extra}
+              "expires_at": _iso(action.expires_at), **extra}
     action.result = dict(result)
 
     audit.record(db, user_id=user.id, actor="AGENT" if tx.initiated_by in ("AGENT", "SCHEDULE") else "STUDENT",
@@ -283,7 +288,7 @@ def convert_currency(db: Session, user: User, *, session_id: str, initiated_by: 
     db.flush()
     _await_verification(db, user, action, [tx], initiated_by)
     action.result = {"status": action.status, "summary": summary, "policy": decision.as_dict(), "quote": q,
-                     "action_id": action.id, "transaction": tx_view(tx), "expires_at": action.expires_at.isoformat()}
+                     "action_id": action.id, "transaction": tx_view(tx), "expires_at": _iso(action.expires_at)}
     audit.record(db, user_id=user.id, actor="AGENT" if initiated_by == "AGENT" else "STUDENT",
                  event="FX_AWAITING_VERIFICATION", tier="T2",
                  details={"action_id": action.id, "amount": amount, "from": src, "to": dst,
@@ -361,7 +366,7 @@ def _expire(db: Session, a: AgentAction):
 def challenge(db: Session, user: User, action_id: int) -> dict:
     a = _get_open_action(db, user, action_id)
     return {"action_id": a.id, "challenge": devices.challenge_text(a), "summary": a.summary,
-            "expires_at": a.expires_at.isoformat(), "mode": settings.VERIFICATION_MODE}
+            "expires_at": _iso(a.expires_at), "mode": settings.VERIFICATION_MODE}
 
 
 def verify_action(db: Session, user: User, action_id: int, *, device_id: int | None = None,
