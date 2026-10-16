@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 600" width="980" height="600" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
+  <style>
+    .panel { fill: #f4f4f4; stroke: #d9d9d9; stroke-width: 1.2; }
+    .box { fill: #ffffff; stroke: #cfcfcf; stroke-width: 1; }
+    .dark { fill: #111111; }
+    .ext { fill: #ffffff; stroke: #9a9a9a; stroke-width: 1; stroke-dasharray: 4 3; }
+    .h { font-size: 15px; font-weight: 600; fill: #111; }
+    .t { font-size: 12.5px; font-weight: 600; fill: #111; }
+    .s { font-size: 10.5px; fill: #5c5c5c; }
+    .tw { font-size: 12.5px; font-weight: 600; fill: #fff; }
+    .sw { font-size: 10.5px; fill: #cfcfcf; }
+    .lbl { font-size: 10.5px; fill: #333; }
+    .arrow { stroke: #111; stroke-width: 1.4; fill: none; marker-end: url(#a); }
+    .arrow2 { stroke: #111; stroke-width: 1.4; fill: none; marker-end: url(#a); marker-start: url(#b); }
+    .dash { stroke: #777; stroke-width: 1.2; fill: none; stroke-dasharray: 5 4; marker-end: url(#a2); }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10,0 L0,5 L10,10 z" fill="#111"/></marker>
+    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#777"/></marker>
+  </defs>
+
+  <rect width="980" height="600" fill="#ffffff"/>
+
+  <!-- Phone -->
+  <rect class="panel" x="20" y="40" width="250" height="540" rx="26"/>
+  <text class="h" x="40" y="70">Student's Android phone</text>
+  <text class="s" x="40" y="86">Flutter app + Kotlin channel</text>
+
+  <rect class="box" x="40" y="104" width="210" height="58" rx="14"/>
+  <text class="t" x="54" y="127">Screens</text>
+  <text class="s" x="54" y="144">Home · Agent · Pay · Activity · Profile</text>
+
+  <rect class="box" x="40" y="174" width="210" height="58" rx="14"/>
+  <text class="t" x="54" y="197">State and navigation</text>
+  <text class="s" x="54" y="214">Riverpod providers · go_router</text>
+
+  <rect class="box" x="40" y="244" width="210" height="72" rx="14"/>
+  <text class="t" x="54" y="267">Core</text>
+  <text class="s" x="54" y="284">API client · session (secure storage)</text>
+  <text class="s" x="54" y="299">device verifier</text>
+
+  <rect class="box" x="40" y="328" width="210" height="58" rx="14"/>
+  <text class="t" x="54" y="351">On-device text reading</text>
+  <text class="s" x="54" y="368">ML Kit OCR, Chinese + Latin</text>
+
+  <rect class="dark" x="40" y="414" width="210" height="84" rx="14"/>
+  <text class="tw" x="54" y="438">Android Keystore</text>
+  <text class="sw" x="54" y="455">P-256 key in secure hardware</text>
+  <text class="sw" x="54" y="470">unlocked only by BiometricPrompt</text>
+  <text class="sw" x="54" y="485">(strong biometric, every use)</text>
+
+  <text class="s" x="40" y="524">Private key never leaves the phone.</text>
+  <text class="s" x="40" y="540">Screenshots are read on the phone.</text>
+
+  <!-- Backend -->
+  <rect class="panel" x="330" y="40" width="420" height="540" rx="26"/>
+  <text class="h" x="350" y="70">MoneyMate backend</text>
+  <text class="s" x="350" y="86">FastAPI · Python · SQLAlchemy</text>
+
+  <rect class="box" x="350" y="104" width="380" height="50" rx="14"/>
+  <text class="t" x="364" y="125">REST API</text>
+  <text class="s" x="364" y="142">auth · agent · finance · mobile · system · public receipt check</text>
+
+  <rect class="box" x="350" y="166" width="185" height="64" rx="14"/>
+  <text class="t" x="364" y="188">Agent orchestrator</text>
+  <text class="s" x="364" y="204">Gemini function calling,</text>
+  <text class="s" x="364" y="218">offline parser as fallback</text>
+
+  <rect class="box" x="545" y="166" width="185" height="64" rx="14"/>
+  <text class="t" x="559" y="188">Daily monitor</text>
+  <text class="s" x="559" y="204">deadlines · scheduled payments</text>
+  <text class="s" x="559" y="218">new senders · low balance</text>
+
+  <rect class="dark" x="350" y="242" width="380" height="56" rx="14"/>
+  <text class="tw" x="364" y="264">Payments pipeline</text>
+  <text class="sw" x="364" y="282">one path for agent, screens and monitor · prepares, never executes</text>
+
+  <rect class="box" x="350" y="310" width="120" height="66" rx="14"/>
+  <text class="t" x="362" y="332">Payee check</text>
+  <text class="s" x="362" y="348">university registry</text>
+  <text class="s" x="362" y="362">scam red flags</text>
+
+  <rect class="box" x="480" y="310" width="120" height="66" rx="14"/>
+  <text class="t" x="492" y="332">Risk engine</text>
+  <text class="s" x="492" y="348">20 features</text>
+  <text class="s" x="492" y="362">6-model hybrid</text>
+
+  <rect class="box" x="610" y="310" width="120" height="66" rx="14"/>
+  <text class="t" x="622" y="332">Policy</text>
+  <text class="s" x="622" y="348">T2 verify</text>
+  <text class="s" x="622" y="362">T3 block</text>
+
+  <rect class="box" x="350" y="388" width="185" height="64" rx="14"/>
+  <text class="t" x="364" y="410">Device verification</text>
+  <text class="s" x="364" y="426">one-time challenge</text>
+  <text class="s" x="364" y="440">ECDSA P-256 signature check</text>
+
+  <rect class="box" x="545" y="388" width="185" height="64" rx="14"/>
+  <text class="t" x="559" y="410">Notifications</text>
+  <text class="s" x="559" y="426">in-app list</text>
+  <text class="s" x="559" y="440">optional FCM push</text>
+
+  <rect class="box" x="350" y="464" width="120" height="64" rx="14"/>
+  <text class="t" x="362" y="486">Receipts</text>
+  <text class="s" x="362" y="502">HMAC-SHA256 code</text>
+  <text class="s" x="362" y="516">PDF</text>
+
+  <rect class="box" x="480" y="464" width="120" height="64" rx="14"/>
+  <text class="t" x="492" y="486">Audit log</text>
+  <text class="s" x="492" y="502">SHA-256 hash</text>
+  <text class="s" x="492" y="516">chain</text>
+
+  <rect class="box" x="610" y="464" width="120" height="64" rx="14"/>
+  <text class="t" x="622" y="486">Database</text>
+  <text class="s" x="622" y="502">wallets · payees</text>
+  <text class="s" x="622" y="516">transactions</text>
+
+  <text class="s" x="350" y="556">Sandbox: balances and providers simulated; FX rates live.</text>
+
+  <!-- External -->
+  <text class="h" x="790" y="70">External services</text>
+
+  <rect class="ext" x="790" y="104" width="170" height="64" rx="14"/>
+  <text class="t" x="804" y="126">Google Gemini</text>
+  <text class="s" x="804" y="142">optional: agent and</text>
+  <text class="s" x="804" y="156">scam second opinion</text>
+
+  <rect class="ext" x="790" y="196" width="170" height="64" rx="14"/>
+  <text class="t" x="804" y="218">ExchangeRate-API</text>
+  <text class="s" x="804" y="234">live mid-market rates</text>
+  <text class="s" x="804" y="248">1 h cache, snapshot fallback</text>
+
+  <rect class="ext" x="790" y="388" width="170" height="64" rx="14"/>
+  <text class="t" x="804" y="410">Firebase Cloud Msg</text>
+  <text class="s" x="804" y="426">optional push to the</text>
+  <text class="s" x="804" y="440">student's phone</text>
+
+  <rect class="ext" x="790" y="476" width="170" height="64" rx="14"/>
+  <text class="t" x="804" y="498">Receipt checkers</text>
+  <text class="s" x="804" y="514">landlord · university</text>
+  <text class="s" x="804" y="528">visa office (no login)</text>
+
+  <!-- Arrows -->
+  <path class="arrow2" d="M250,270 C300,270 300,129 348,129"/>
+  <text class="lbl" x="276" y="196" transform="rotate(-90 276 196)" text-anchor="middle">HTTPS · REST + JWT</text>
+
+  <path class="arrow" d="M250,456 C300,456 300,420 348,420"/>
+  <text class="lbl" x="300" y="478" text-anchor="middle">signed approval</text>
+
+  <path class="arrow" d="M442,166 L442,160 L740,160 C765,160 765,136 788,136"/>
+  <path class="arrow" d="M750,228 L788,228"/>
+  <path class="arrow" d="M730,420 L788,420"/>
+  <path class="dash" d="M790,500 L768,500 L768,147 L732,147"/>
+  <text class="lbl" x="762" y="330" text-anchor="middle" transform="rotate(-90 762 330)">check a receipt code</text>
+
+  <path class="arrow" d="M540,298 L540,308"/>
+</svg>
