@@ -23,8 +23,10 @@ def _stage(days_left: int) -> str | None:
 
 def _cost_to_cover(shortfall: float, src: str, dst: str) -> float:
     """Amount in `src` that must be converted (fee included) to receive `shortfall` in `dst`."""
-    q = sandbox.quote(1000.0, src, dst, "remitlite")  # rate and fee for this pair
-    return shortfall / q["rate"] + q["fee"]
+    q = sandbox.quote(1000.0, src, dst, "remitlite")  # fee for this pair
+    # Use the unrounded rate: quotes round it to 4 decimals (0.0539 BDT->CNY), which over-converts ~0.1%.
+    rate = sandbox.mid_rate(src, dst) * (1 - sandbox.PROVIDER_BY_ID["remitlite"]["fx_margin"])
+    return shortfall / rate + q["fee"]
 
 
 def tuition_reminders(db: Session, user: User, today: date | None = None, log_new_stages: bool = True) -> list[dict]:
