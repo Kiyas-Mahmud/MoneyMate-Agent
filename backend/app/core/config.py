@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.8-flash"
     GEMINI_FALLBACK_MODELS: str = "gemini-3.5-flash,gemini-3.7-flash,gemini-flash-latest,gemini-3.1-flash-lite"  # tried in order when the main model is busy or retired
+    GEMINI_TIMEOUT_SECONDS: float = 15  # a stalled call ends here and the chat answers with the offline parser
 
     FX_LIVE: bool = True
     FX_API_URL: str = "https://open.er-api.com/v6/latest/USD"

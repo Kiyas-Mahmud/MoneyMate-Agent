@@ -1,0 +1,17 @@
+00:00 +0: loading ~/myproject/MoneyMate-Agent/app/test/format_test.dart
+00:00 +0: ~/myproject/MoneyMate-Agent/app/test/format_test.dart: money uses the currency symbol and thousands separators
+00:00 +1: ~/myproject/MoneyMate-Agent/app/test/format_test.dart: money shows cents only for small, non-round amounts unless asked
+00:00 +2: ~/myproject/MoneyMate-Agent/app/test/format_test.dart: money signs incoming and outgoing amounts
+00:00 +3: ~/myproject/MoneyMate-Agent/app/test/format_test.dart: money falls back to the code for unknown currencies
+00:00 +4: ~/myproject/MoneyMate-Agent/app/test/format_test.dart: parseUtc treats times without an offset as UTC, never phone-local
+00:00 +5: ~/myproject/MoneyMate-Agent/app/test/format_test.dart: parseUtc respects an explicit offset
+00:00 +6: ~/myproject/MoneyMate-Agent/app/test/format_test.dart: shortDate
+00:00 +7: ~/myproject/MoneyMate-Agent/app/test/format_test.dart: greeting follows the local hour
+00:00 +8: ~/myproject/MoneyMate-Agent/app/test/action_cards_test.dart: a prepared tuition payment asks for verification and shows the convert-then-pay plan
+00:01 +9: ~/myproject/MoneyMate-Agent/app/test/anchor_line_test.dart: an anchored receipt names the chain and block
+00:01 +10: ~/myproject/MoneyMate-Agent/app/test/anchor_line_test.dart: an anchored receipt names the chain and block
+00:01 +11: ~/myproject/MoneyMate-Agent/app/test/anchor_line_test.dart: an anchored receipt names the chain and block
+00:01 +12: ~/myproject/MoneyMate-Agent/app/test/anchor_line_test.dart: an anchored receipt names the chain and block
+00:01 +13: ~/myproject/MoneyMate-Agent/app/test/anchor_line_test.dart: a pending anchor says when it will be added
+00:01 +14: ~/myproject/MoneyMate-Agent/app/test/anchor_line_test.dart: nothing is shown without an audit entry
+00:01 +15: All tests passed!

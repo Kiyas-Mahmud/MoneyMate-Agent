@@ -176,7 +176,7 @@ python -m ml.train_hybrid
 cd backend && python -m pytest -q
 ```
 
-85 backend tests, all passing (the app has its own 15 in `app/test`). The tests play the phone with real key pairs: an Android-Keystore-style P-256 key
+86 backend tests, all passing (the app has its own 15 in `app/test`). The tests play the phone with real key pairs: an Android-Keystore-style P-256 key
 (`AndroidPhone` in `tests/conftest.py`) and an Ed25519 test-client key (`Phone`, used by the older tests).
 
 - **End-to-end scenarios** (`test_scenarios.py`, 26): tuition with a planned conversion and one
@@ -192,10 +192,10 @@ cd backend && python -m pytest -q
   verification, sandbox mode works only when enabled, a standing instruction is prepared on its due day
   and waits (and is not prepared twice), standing instruction set up by chat, mule alert on money from a
   stranger, tuition reminder notified once, notifications marked read.
-- **Features** (`test_features.py`, 17, plus parametrised cases): reminder stages and shortfall, reminder logged once, receipt
+- **Features** (`test_features.py`, 18, plus parametrised cases): reminder stages and shortfall, reminder logged once, receipt
   verification and tamper detection, receipt PDF, no receipt before verification, receipt access control,
-  live FX with offline fallback, and the Gemini second opinion (escalates, never downgrades, falls back on
-  errors) with a mocked model.
+  live FX with offline fallback, the Gemini second opinion (escalates, never downgrades, falls back on
+  errors) with a mocked model, and a stalled Gemini call ending in the offline parser instead of hanging the chat.
 - **Blockchain anchoring** (`test_anchor.py`, 9, against a fake chain): the anchor transaction carries the audit
   head, a consistently rewritten log is caught, mainnet and a wrong-chain endpoint are refused, an empty wallet
   sends nothing, the chain being down never breaks a payment, receipts report pending then anchored.
@@ -205,6 +205,20 @@ cd backend && python -m pytest -q
 - **Android** (`test_android.py`, 7): a P-256 Keystore key verifies a payment, a P-256 signature for another
   payment fails, a key on the wrong curve is refused, a new phone triggers an alert, the push token can be
   rotated, the FCM message format (mocked token and HTTP), and a push failure does not break the payment.
+
+### Execution evidence (sandbox operation log)
+
+```bash
+cd backend && .venv/bin/python -m scripts.sandbox_evidence   # with the backend running
+```
+
+Runs 11 scenarios against the running backend through the same API the app uses (fingerprint step signed by a
+simulated Android Keystore key), then writes [docs/evidence/sandbox/](docs/evidence/sandbox/): the report
+([PDF](docs/evidence/sandbox/SANDBOX_OPERATION_LOG.pdf), [Markdown](docs/evidence/sandbox/SANDBOX_OPERATION_LOG.md)),
+every request and response (`scenarios.json`), the audit entries with their hashes (`operation-log.json`) and the
+test runs. With anchoring on, the run is anchored on Ethereum Sepolia. Latest run: 34 of 34 checks passed, audit
+entries #155–#177, anchored in block 11929233. The first anchor is described in
+[docs/evidence/ONCHAIN_ANCHOR.md](docs/evidence/ONCHAIN_ANCHOR.md).
 
 ## Project layout
 

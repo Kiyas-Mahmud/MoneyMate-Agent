@@ -213,3 +213,28 @@ def test_a_busy_gemini_model_is_skipped_for_a_while(monkeypatch):
     api = _FakeClient({})
     gemini_client.generate(api, contents=[], config=None)
     assert api.models.calls == ["backup-model"]  # the busy model is not retried straight away
+
+
+def test_a_stalled_gemini_call_falls_back_to_the_offline_parser(client, auth, monkeypatch):
+    import httpx
+
+    from app.services.agent import gemini_client
+
+    class Stalled:
+        def __init__(self):
+            self.calls = []
+
+        def generate_content(self, model, contents, config):
+            self.calls.append(model)
+            raise httpx.ReadTimeout("timed out")
+
+    stalled = Stalled()
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr(settings, "GEMINI_MODEL", "main-model")
+    monkeypatch.setattr(settings, "GEMINI_FALLBACK_MODELS", "backup-model")
+    monkeypatch.setattr(gemini_client, "_resting", {})
+    monkeypatch.setattr(gemini_client, "client", lambda: type("C", (), {"models": stalled})())
+    r = client.post("/api/agent/chat", headers=auth, json={"message": "send 300 CNY to mother"}).json()
+    assert r["engine"] == "fallback" and r["actions"][0]["status"] == "AWAITING_VERIFICATION"
+    assert stalled.calls == ["main-model"]                 # one slow call, not one per model in the chain
+    assert gemini_client._resting["main-model"] > 0

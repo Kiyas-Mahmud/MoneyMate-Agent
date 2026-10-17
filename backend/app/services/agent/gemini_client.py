@@ -6,6 +6,8 @@ keys (404); the next model in GEMINI_FALLBACK_MODELS is tried before the caller 
 import logging
 import time
 
+import httpx
+
 from app.core.config import settings
 
 log = logging.getLogger(__name__)
@@ -27,8 +29,10 @@ def client():
     from google.genai import types
 
     # No retry with back-off per model: the fallback chain handles a busy model, so the chat doesn't stall.
+    # The timeout (milliseconds) stops a stalled call from holding the chat open.
     return genai.Client(api_key=settings.GEMINI_API_KEY,
-                        http_options=types.HttpOptions(retry_options=types.HttpRetryOptions(attempts=1)))
+                        http_options=types.HttpOptions(retry_options=types.HttpRetryOptions(attempts=1),
+                                                       timeout=int(settings.GEMINI_TIMEOUT_SECONDS * 1000)))
 
 
 def generate(api, *, contents, config, start: int = 0):
@@ -52,4 +56,10 @@ def generate(api, *, contents, config, start: int = 0):
             _resting[chain[i]] = time.monotonic() + rest
             log.warning("Gemini model %s unavailable (%s), resting it for %ss", chain[i], e.code, rest)
             last = e
+        except httpx.TransportError as e:
+            # Timed out or unreachable: the next model would likely wait as long, so rest this one and let the
+            # caller answer offline.
+            _resting[chain[i]] = time.monotonic() + COOLDOWN_SECONDS
+            log.warning("Gemini model %s unreachable (%s), resting it", chain[i], type(e).__name__)
+            raise
     raise last or RuntimeError("No Gemini model configured")

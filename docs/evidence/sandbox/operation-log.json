@@ -1,0 +1,484 @@
+{
+  "meta": {
+    "started": "2026-10-16 19:16 UTC",
+    "commit": "e833ae3",
+    "base_url": "http://localhost:8000",
+    "engine": "fallback, gemini"
+  },
+  "audit_check": {
+    "valid": true,
+    "entries": 204,
+    "head": "f4ada4ac63e64f5f9ac59dd783c879e23aa68bcf1c5e3145fb37fb02cd87c7f8",
+    "anchoring": {
+      "chain": "Ethereum Sepolia",
+      "chain_id": 11155111,
+      "wallet": "0x1D8cE5532A292f5E7B71F96f4031c23a887Ae07B",
+      "anchors": 2,
+      "anchored_up_to": 177,
+      "latest": {
+        "entry_id": 177,
+        "hash": "5e437cafbe1baf7a572f2d2aab684cd5f1dc2d0e9971ef8893616deebc42b95a",
+        "chain": "Ethereum Sepolia",
+        "tx_hash": "0xfcc602be63b4c39b8a126c49ac0b7397bde20e80e207e106379d0a9f749715e4",
+        "block_number": 11929233,
+        "status": "CONFIRMED",
+        "explorer_url": "https://sepolia.etherscan.io/tx/0xfcc602be63b4c39b8a126c49ac0b7397bde20e80e207e106379d0a9f749715e4",
+        "created_at": "2026-10-16T19:09:57"
+      },
+      "checked_on_chain": 2,
+      "mismatches": [],
+      "on_chain": "ok"
+    }
+  },
+  "entries": [
+    {
+      "id": 180,
+      "actor": "SYSTEM",
+      "event": "SANDBOX_RESET",
+      "tier": null,
+      "details": {},
+      "hash": "1f84014a374b50dc517e886d9b17b754059079e5d0415b079d0977a6fcb5386a",
+      "prev_hash": "1a0e2940d698ec3d281c160e0beac7aa925ead765a1cc8e45d9a5a254c286f66",
+      "created_at": "2026-10-16T19:16:19.750164"
+    },
+    {
+      "id": 181,
+      "actor": "STUDENT",
+      "event": "DEVICE_REGISTERED",
+      "tier": null,
+      "details": {
+        "device_id": 6,
+        "name": "Sandbox phone (Android Keystore key)",
+        "key_type": "p256"
+      },
+      "hash": "d11272000430f5c7064ad12f219dec299775e4de19faaa63882f4ac8441f2b11",
+      "prev_hash": "1f84014a374b50dc517e886d9b17b754059079e5d0415b079d0977a6fcb5386a",
+      "created_at": "2026-10-16T19:16:19.767508"
+    },
+    {
+      "id": 182,
+      "actor": "AGENT",
+      "event": "PAYMENT_AWAITING_VERIFICATION",
+      "tier": "T2",
+      "details": {
+        "action_id": 1,
+        "transaction_id": 39,
+        "kind": "REMITTANCE_OUT",
+        "amount": 300.0,
+        "currency": "CNY",
+        "counterparty": "Rokeya Begum",
+        "risk_score": 0.0119,
+        "risk_level": "LOW",
+        "rules": [
+          "Every payment needs your verification. The agent can't move money on its own."
+        ],
+        "initiated_by": "AGENT"
+      },
+      "hash": "0a9d3c2f699327a385197b36976d519f6091d09b1159252f05cb124a9316d338",
+      "prev_hash": "d11272000430f5c7064ad12f219dec299775e4de19faaa63882f4ac8441f2b11",
+      "created_at": "2026-10-16T19:16:33.768434"
+    },
+    {
+      "id": 183,
+      "actor": "STUDENT",
+      "event": "PAYMENT_VERIFIED",
+      "tier": "T2",
+      "details": {
+        "action_id": 1,
+        "transaction_id": 39,
+        "amount": 300.0,
+        "currency": "CNY",
+        "counterparty": "Rokeya Begum",
+        "method": "device:6"
+      },
+      "hash": "caa6cf2e4c21640089b407b490517277535815ff5cca79caca1f6d03f48ffefc",
+      "prev_hash": "0a9d3c2f699327a385197b36976d519f6091d09b1159252f05cb124a9316d338",
+      "created_at": "2026-10-16T19:16:33.816231"
+    },
+    {
+      "id": 184,
+      "actor": "AGENT",
+      "event": "TUITION_REMINDER",
+      "tier": "T0",
+      "details": {
+        "invoice_id": 1,
+        "stage": "OVERDUE",
+        "days_left": -9,
+        "shortfall": 8300.0,
+        "currency": "CNY"
+      },
+      "hash": "caa2d817ed7a3f6e3d5a0cbe1a2e9526bd7848bb684e26a821f7057ab269bc15",
+      "prev_hash": "caa6cf2e4c21640089b407b490517277535815ff5cca79caca1f6d03f48ffefc",
+      "created_at": "2026-10-16T19:16:33.846243"
+    },
+    {
+      "id": 185,
+      "actor": "AGENT",
+      "event": "PAYMENT_AWAITING_VERIFICATION",
+      "tier": "T2",
+      "details": {
+        "action_id": 2,
+        "transaction_id": 40,
+        "kind": "REMITTANCE_OUT",
+        "amount": 1500.0,
+        "currency": "CNY",
+        "counterparty": "Rokeya Begum",
+        "risk_score": 0.0123,
+        "risk_level": "LOW",
+        "rules": [
+          "Every payment needs your verification. The agent can't move money on its own."
+        ],
+        "initiated_by": "SCHEDULE"
+      },
+      "hash": "7beffbda7fab8dccf28150d67c5b2776a2db779298bbba379af0760cb97a1708",
+      "prev_hash": "caa2d817ed7a3f6e3d5a0cbe1a2e9526bd7848bb684e26a821f7057ab269bc15",
+      "created_at": "2026-10-16T19:16:33.909201"
+    },
+    {
+      "id": 186,
+      "actor": "AGENT",
+      "event": "DAILY_MONITOR_RUN",
+      "tier": "T0",
+      "details": {
+        "date": "2026-11-01",
+        "reminders": 1,
+        "scheduled": 1,
+        "mule_alerts": 0,
+        "low_balance": false
+      },
+      "hash": "0b21e7e41d733d96aa4fcea5689b8f4777a5c1686d0bf2f8d6f169b97f611134",
+      "prev_hash": "7beffbda7fab8dccf28150d67c5b2776a2db779298bbba379af0760cb97a1708",
+      "created_at": "2026-10-16T19:16:33.911509"
+    },
+    {
+      "id": 187,
+      "actor": "STUDENT",
+      "event": "PAYMENT_VERIFIED",
+      "tier": "T2",
+      "details": {
+        "action_id": 2,
+        "transaction_id": 40,
+        "amount": 1500.0,
+        "currency": "CNY",
+        "counterparty": "Rokeya Begum",
+        "method": "device:6"
+      },
+      "hash": "84065062440e0f2399f0edf4ef583193549fa0d392067ce391a0d755c1f2c906",
+      "prev_hash": "0b21e7e41d733d96aa4fcea5689b8f4777a5c1686d0bf2f8d6f169b97f611134",
+      "created_at": "2026-10-16T19:16:33.936217"
+    },
+    {
+      "id": 188,
+      "actor": "AGENT",
+      "event": "TOOL_READ",
+      "tier": "T0",
+      "details": {
+        "action_id": 3,
+        "tool": "compare_remittance_providers",
+        "args": {
+          "from_currency": "CNY",
+          "to_currency": "BDT",
+          "amount": 200
+        }
+      },
+      "hash": "9dd9eed7c40edb3aaca0e20670df6654dea4478fb2434be8b76d02cc38ce1e68",
+      "prev_hash": "84065062440e0f2399f0edf4ef583193549fa0d392067ce391a0d755c1f2c906",
+      "created_at": "2026-10-16T19:16:39.350153"
+    },
+    {
+      "id": 189,
+      "actor": "AGENT",
+      "event": "TOOL_READ",
+      "tier": "T0",
+      "details": {
+        "action_id": 4,
+        "tool": "list_recipients",
+        "args": {}
+      },
+      "hash": "73e99c821ed4ade38e35ad322e2b21761ffb4c2ede41ac298f719da51e0802da",
+      "prev_hash": "9dd9eed7c40edb3aaca0e20670df6654dea4478fb2434be8b76d02cc38ce1e68",
+      "created_at": "2026-10-16T19:16:42.111415"
+    },
+    {
+      "id": 190,
+      "actor": "AGENT",
+      "event": "PAYMENT_AWAITING_VERIFICATION",
+      "tier": "T2",
+      "details": {
+        "action_id": 5,
+        "transaction_id": 41,
+        "kind": "REMITTANCE_OUT",
+        "amount": 200,
+        "currency": "CNY",
+        "counterparty": "Abdul Karim",
+        "risk_score": 0.0157,
+        "risk_level": "LOW",
+        "rules": [
+          "Every payment needs your verification. The agent can't move money on its own.",
+          "First payment to this payee"
+        ],
+        "initiated_by": "AGENT"
+      },
+      "hash": "25d780a6a96b2e05e6cb874e8106bb429b2be73dacfaa0003018f04c0e58a7fd",
+      "prev_hash": "73e99c821ed4ade38e35ad322e2b21761ffb4c2ede41ac298f719da51e0802da",
+      "created_at": "2026-10-16T19:16:44.239770"
+    },
+    {
+      "id": 191,
+      "actor": "STUDENT",
+      "event": "PAYMENT_VERIFIED",
+      "tier": "T2",
+      "details": {
+        "action_id": 5,
+        "transaction_id": 41,
+        "amount": 200.0,
+        "currency": "CNY",
+        "counterparty": "Abdul Karim",
+        "method": "device:6"
+      },
+      "hash": "9c67659568df90a028114d86dd5f41a1b0412e15df5b9f7a06a8387a6860b3a3",
+      "prev_hash": "25d780a6a96b2e05e6cb874e8106bb429b2be73dacfaa0003018f04c0e58a7fd",
+      "created_at": "2026-10-16T19:16:45.823711"
+    },
+    {
+      "id": 192,
+      "actor": "AGENT",
+      "event": "TOOL_READ",
+      "tier": "T0",
+      "details": {
+        "action_id": 6,
+        "tool": "list_recipients",
+        "args": {}
+      },
+      "hash": "fd9c4887c86e9f85e9e33c83d2c95393234f327b0b5814e4d23d436c5d002904",
+      "prev_hash": "9c67659568df90a028114d86dd5f41a1b0412e15df5b9f7a06a8387a6860b3a3",
+      "created_at": "2026-10-16T19:16:47.438417"
+    },
+    {
+      "id": 193,
+      "actor": "AGENT",
+      "event": "TOOL_READ",
+      "tier": "T0",
+      "details": {
+        "action_id": 7,
+        "tool": "compare_remittance_providers",
+        "args": {
+          "to_currency": "BDT",
+          "amount": 500,
+          "from_currency": "CNY"
+        }
+      },
+      "hash": "2c57a307c839addda5a2321be06e41644657cb2471e88cdead43683494842f36",
+      "prev_hash": "fd9c4887c86e9f85e9e33c83d2c95393234f327b0b5814e4d23d436c5d002904",
+      "created_at": "2026-10-16T19:16:57.271490"
+    },
+    {
+      "id": 194,
+      "actor": "AGENT",
+      "event": "PAYMENT_AWAITING_VERIFICATION",
+      "tier": "T2",
+      "details": {
+        "action_id": 8,
+        "transaction_id": 42,
+        "kind": "REMITTANCE_OUT",
+        "amount": 500,
+        "currency": "CNY",
+        "counterparty": "Rokeya Begum",
+        "risk_score": 0.0145,
+        "risk_level": "LOW",
+        "rules": [
+          "Every payment needs your verification. The agent can't move money on its own."
+        ],
+        "initiated_by": "AGENT"
+      },
+      "hash": "dff6909a724defcdc007eb22c3fef41d71a6ae5f916262e212b890a536648b61",
+      "prev_hash": "2c57a307c839addda5a2321be06e41644657cb2471e88cdead43683494842f36",
+      "created_at": "2026-10-16T19:16:58.555278"
+    },
+    {
+      "id": 195,
+      "actor": "STUDENT",
+      "event": "PAYMENT_REJECTED",
+      "tier": "T2",
+      "details": {
+        "action_id": 8
+      },
+      "hash": "33cde4e1c1467e4ed83844f17f9acfbbb0b4bfc89552cdbcff6d3748ee32b42f",
+      "prev_hash": "dff6909a724defcdc007eb22c3fef41d71a6ae5f916262e212b890a536648b61",
+      "created_at": "2026-10-16T19:17:00.662577"
+    },
+    {
+      "id": 196,
+      "actor": "AGENT",
+      "event": "TOOL_READ",
+      "tier": "T0",
+      "details": {
+        "action_id": 9,
+        "tool": "get_tuition_reminders",
+        "args": {}
+      },
+      "hash": "eb9c22df8972118be72c9f5db899e266a5bb84adf7aa680908b9df55ddfae23b",
+      "prev_hash": "33cde4e1c1467e4ed83844f17f9acfbbb0b4bfc89552cdbcff6d3748ee32b42f",
+      "created_at": "2026-10-16T19:17:11.603024"
+    },
+    {
+      "id": 197,
+      "actor": "AGENT",
+      "event": "PAYMENT_AWAITING_VERIFICATION",
+      "tier": "T2",
+      "details": {
+        "action_id": 10,
+        "transaction_id": 44,
+        "kind": "TUITION",
+        "amount": 26000,
+        "currency": "CNY",
+        "counterparty": "Pearl River University (Shenzhen)",
+        "risk_score": 0.0183,
+        "risk_level": "LOW",
+        "rules": [
+          "Every payment needs your verification. The agent can't move money on its own."
+        ],
+        "initiated_by": "AGENT"
+      },
+      "hash": "0da9fd5fc9bb56a94f263e5acc1af91b2c867d0ef70a8ea29b7bd0d421598931",
+      "prev_hash": "eb9c22df8972118be72c9f5db899e266a5bb84adf7aa680908b9df55ddfae23b",
+      "created_at": "2026-10-16T19:17:13.437746"
+    },
+    {
+      "id": 198,
+      "actor": "STUDENT",
+      "event": "PAYMENT_VERIFIED",
+      "tier": "T2",
+      "details": {
+        "action_id": 10,
+        "transaction_id": 44,
+        "amount": 26000.0,
+        "currency": "CNY",
+        "counterparty": "Pearl River University (Shenzhen)",
+        "method": "device:6"
+      },
+      "hash": "fa91fb1cf7a1b33baacc3f38ba19b69af7341cb6a02315c324d777db4bfcc0f4",
+      "prev_hash": "0da9fd5fc9bb56a94f263e5acc1af91b2c867d0ef70a8ea29b7bd0d421598931",
+      "created_at": "2026-10-16T19:17:14.982478"
+    },
+    {
+      "id": 199,
+      "actor": "STUDENT",
+      "event": "PAYMENT_BLOCKED",
+      "tier": "T3",
+      "details": {
+        "action_id": 11,
+        "transaction_id": 45,
+        "kind": "TUITION",
+        "amount": 22100.0,
+        "currency": "CNY",
+        "counterparty": "Pearl River University (Shenzhen)",
+        "risk_score": 0.9862,
+        "risk_level": "HIGH",
+        "rules": [
+          "Payee impersonates a registered institution (account does not match the official one)",
+          "Tuition can only be paid to an official account in the verified institution registry",
+          "Hybrid model risk is HIGH (99%)"
+        ],
+        "initiated_by": "USER"
+      },
+      "hash": "f83f48e4be7534277ee648c7389d3f489fa2bc98cb354543c850e91e097ac76e",
+      "prev_hash": "fa91fb1cf7a1b33baacc3f38ba19b69af7341cb6a02315c324d777db4bfcc0f4",
+      "created_at": "2026-10-16T19:17:15.083860"
+    },
+    {
+      "id": 200,
+      "actor": "AGENT",
+      "event": "TOOL_READ",
+      "tier": "T0",
+      "details": {
+        "action_id": 12,
+        "tool": "analyze_payment_request",
+        "args": {
+          "text": "URGENT - Pearl River University (Shenzhen) Bursary Office\nDear student, pay your Spring 2027 tuition today only and get a 15% discount.\nAmount: CNY 22,100. Pay by WeChat transfer to our agent.\nAccount number: 6222 9911 0042 7788\nDo not contact the university office, this offer is confidential."
+        }
+      },
+      "hash": "930f070240462766c2cf557d060c9ceb26d64631a826cadab6ae6f1c2ed5140c",
+      "prev_hash": "f83f48e4be7534277ee648c7389d3f489fa2bc98cb354543c850e91e097ac76e",
+      "created_at": "2026-10-16T19:17:16.255708"
+    },
+    {
+      "id": 201,
+      "actor": "SYSTEM",
+      "event": "TRANSFER_RECEIVED",
+      "tier": "T0",
+      "details": {
+        "transaction_id": 46,
+        "sender": "Global Remote Jobs Ltd",
+        "amount": 30000.0,
+        "currency": "CNY"
+      },
+      "hash": "8b6ca0236fe26d6b9ed4cc17d516ebea3ce5d261d1d11ce9a07f752d2928cdd3",
+      "prev_hash": "930f070240462766c2cf557d060c9ceb26d64631a826cadab6ae6f1c2ed5140c",
+      "created_at": "2026-10-16T19:17:25.749853"
+    },
+    {
+      "id": 202,
+      "actor": "STUDENT",
+      "event": "PAYMENT_BLOCKED",
+      "tier": "T3",
+      "details": {
+        "action_id": 13,
+        "transaction_id": 47,
+        "kind": "REMITTANCE_OUT",
+        "amount": 27000.0,
+        "currency": "CNY",
+        "counterparty": "Kevin Tan",
+        "risk_score": 0.991,
+        "risk_level": "HIGH",
+        "rules": [
+          "Money-mule pattern: forwarding money just received from a first-time sender",
+          "Hybrid model risk is HIGH (99%)"
+        ],
+        "initiated_by": "USER"
+      },
+      "hash": "e80e812ef4a6aaab7d104550c14ac5d5bb31af2fa91f8d75f08120741fd7100f",
+      "prev_hash": "8b6ca0236fe26d6b9ed4cc17d516ebea3ce5d261d1d11ce9a07f752d2928cdd3",
+      "created_at": "2026-10-16T19:17:25.865770"
+    },
+    {
+      "id": 203,
+      "actor": "STUDENT",
+      "event": "PAYMENT_BLOCKED",
+      "tier": "T3",
+      "details": {
+        "action_id": 14,
+        "transaction_id": 48,
+        "kind": "REMITTANCE_OUT",
+        "amount": 15000.0,
+        "currency": "CNY",
+        "counterparty": "Officer Zhang",
+        "risk_score": 0.9911,
+        "risk_level": "HIGH",
+        "rules": [
+          "Hard-to-reverse channel (crypto / gift card / e-wallet) to a private person",
+          "Money-mule pattern: forwarding money just received from a first-time sender",
+          "Hybrid model risk is HIGH (99%)"
+        ],
+        "initiated_by": "USER"
+      },
+      "hash": "c32f5755d2fa2f71faf148e84cec10f3c74abfabd63d49a960317ddb577cefa2",
+      "prev_hash": "e80e812ef4a6aaab7d104550c14ac5d5bb31af2fa91f8d75f08120741fd7100f",
+      "created_at": "2026-10-16T19:17:25.942728"
+    },
+    {
+      "id": 204,
+      "actor": "STUDENT",
+      "event": "HISTORY_REPORT_ISSUED",
+      "tier": "T0",
+      "details": {
+        "reference": "PH-20261016-000001",
+        "months": 6,
+        "on_time_rate": 93
+      },
+      "hash": "f4ada4ac63e64f5f9ac59dd783c879e23aa68bcf1c5e3145fb37fb02cd87c7f8",
+      "prev_hash": "c32f5755d2fa2f71faf148e84cec10f3c74abfabd63d49a960317ddb577cefa2",
+      "created_at": "2026-10-16T19:17:25.965429"
+    }
+  ]
+}

@@ -312,8 +312,8 @@ We list what is **not** solved yet. Full list with severity: [security self-asse
 
 ### 2.13 Evidence
 
-Security controls are covered by automated tests: **85 backend tests** (`cd backend && pytest -q`) and **15 app
-tests** (`cd app && flutter test`), all passing on 16 October 2026.
+Security controls are covered by automated tests: **86 backend tests** (`cd backend && pytest -q`) and **15 app
+tests** (`cd app && flutter test`), all passing on 17 October 2026.
 
 | Control | Test (backend `tests/`) |
 |---|---|
@@ -333,3 +333,8 @@ tests** (`cd app && flutter test`), all passing on 16 October 2026.
 The app was also exercised end to end on an Android emulator: tuition through the agent, the verify sheet,
 rejection, receipts, the scam check from a WeChat screenshot and the full money-mule scenario. Screenshots
 are in [`app/docs/screens/`](../app/docs/screens/).
+
+The sandbox operation log ([`docs/evidence/sandbox/`](evidence/sandbox/SANDBOX_OPERATION_LOG.pdf)) records 11
+scenarios run against the live backend through the app's API: every request and response, the policy tier, the
+fingerprint signatures and the resulting audit entries (34 of 34 checks passed). The run's audit head is
+anchored on Ethereum Sepolia in block 11929233.
