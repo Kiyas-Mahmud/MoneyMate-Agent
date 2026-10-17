@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MoneyMate intro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=block" rel="stylesheet">
+<style>
+  :root { --ink: #111111; --canvas: #F4F4F4; --muted: #5C5C5C; --hint: #8A8A8A; --line: #ECECEC;
+          --ok: #1E6B41; --okbg: #E7F4EC; --bad: #A8231A; --badbg: #FDECEB; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--canvas); }
+  body { font-family: Inter, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+  #stage { position: absolute; inset: 0; overflow: hidden; background: var(--canvas); }
+  .abs { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+
+  /* background */
+  .blob { position: absolute; border-radius: 50%; filter: blur(90px); }
+  #grain { position: absolute; inset: 0; opacity: .035; pointer-events: none;
+           background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>"); }
+
+  /* brand mark */
+  .mark { display: flex; gap: 12px; align-items: center; }
+  .mark i { display: block; width: 24px; border-radius: 12px; background: var(--ink); transform-origin: 50% 50%; }
+
+  /* text blocks */
+  .block { position: absolute; left: 190px; top: 0; width: 860px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 500; color: var(--muted);
+             padding: 10px 18px; border-radius: 999px; background: rgba(255,255,255,.75); border: 1px solid #fff;
+             box-shadow: 0 8px 24px rgba(0,0,0,.05); margin-bottom: 26px; }
+  .eyebrow .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
+  .h { font-size: 70px; line-height: 1.06; font-weight: 600; letter-spacing: -0.035em; }
+  .h.xl { font-size: 84px; }
+  .sub { font-size: 27px; line-height: 1.42; color: var(--muted); margin-top: 26px; max-width: 700px; letter-spacing: -0.005em; }
+  .w { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .1em; margin-bottom: -.1em; }
+  .wi { display: inline-block; }
+
+  /* glass card */
+  .glass { background: rgba(255,255,255,.78); border: 1px solid rgba(255,255,255,.95); border-radius: 26px;
+           box-shadow: 0 18px 50px rgba(0,0,0,.07), 0 2px 6px rgba(0,0,0,.03); }
+
+  /* problem chips */
+  .chip { position: absolute; display: flex; align-items: center; gap: 18px; padding: 20px 26px 20px 20px; width: 470px; white-space: nowrap; }
+  .chip .ic { width: 58px; height: 58px; border-radius: 18px; background: var(--ink); display: grid; place-items: center; flex: none; }
+  .chip .ic svg { width: 28px; height: 28px; stroke: #fff; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .chip .t { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .chip .s { font-size: 17px; color: var(--muted); margin-top: 3px; }
+  .chip .amt { margin-left: auto; font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+  .chip.scam { background: rgba(253,236,235,.92); border-color: #fff; }
+  .chip.scam .ic { background: var(--bad); }
+  .chip.scam .t { color: var(--bad); }
+
+  /* phone */
+  #phone { width: 430px; height: 904px; border-radius: 64px; background: #0d0d0d; padding: 12px;
+           box-shadow: 0 60px 120px rgba(0,0,0,.20), 0 20px 40px rgba(0,0,0,.10), inset 0 0 0 2px #2a2a2a; }
+  #screen { position: relative; width: 406px; height: 880px; border-radius: 52px; overflow: hidden; background: var(--canvas); }
+  #screen img { position: absolute; left: 0; top: 0; width: 406px; height: 880px; display: block; }
+  .layer { position: absolute; inset: 0; overflow: hidden; }
+  .tap { position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%;
+         background: rgba(17,17,17,.18); pointer-events: none; }
+
+  /* fingerprint badge */
+  #fp { width: 150px; height: 150px; border-radius: 50%; display: grid; place-items: center; }
+  #fp svg.ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+  #fp .icon { position: absolute; inset: 0; display: grid; place-items: center; }
+  #fp .icon svg { width: 62px; height: 62px; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* threat badges */
+  .threat { display: flex; align-items: center; gap: 16px; padding: 16px 22px 16px 16px; width: 560px; margin-top: 14px; border-radius: 22px; }
+  .threat .x { width: 44px; height: 44px; border-radius: 50%; background: var(--badbg); display: grid; place-items: center; flex: none; }
+  .threat .x svg { width: 20px; height: 20px; stroke: var(--bad); stroke-width: 2.4; fill: none; stroke-linecap: round; }
+  .threat .t { font-size: 22px; font-weight: 500; letter-spacing: -0.01em; }
+  .threat .b { margin-left: auto; font-size: 17px; font-weight: 600; color: var(--bad); background: var(--badbg); padding: 7px 14px; border-radius: 999px; }
+
+  /* verify card */
+  #vcard { width: 400px; padding: 22px 24px; }
+  #vcard .row { display: flex; align-items: center; gap: 14px; }
+  #vcard .ok { width: 46px; height: 46px; border-radius: 50%; background: var(--ok); display: grid; place-items: center; flex: none; }
+  #vcard .ok svg { width: 24px; height: 24px; stroke: #fff; stroke-width: 2.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  #vcard .t { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  #vcard .s { font-size: 16px; color: var(--muted); margin-top: 2px; }
+  #vcard .meta { display: flex; justify-content: space-between; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 16px; color: var(--muted); }
+  #vcard .meta b { color: var(--ink); font-weight: 600; }
+
+  /* hash chain */
+  #chain { display: flex; align-items: center; margin-top: 40px; }
+  .blk { width: 132px; height: 92px; padding: 14px 16px; border-radius: 20px; flex: none; }
+  .blk .n { font-size: 15px; color: var(--hint); font-weight: 500; }
+  .blk .hh { font-family: 'JetBrains Mono', Menlo, monospace; font-size: 15px; margin-top: 8px; color: var(--ink); letter-spacing: -0.02em; }
+  .blk.dark { background: var(--ink); border-color: var(--ink); width: 210px; }
+  .blk.dark .n { color: #bdbdbd; } .blk.dark .hh { color: #fff; font-family: Inter, sans-serif; font-weight: 600; font-size: 16px; }
+  .lnk { width: 34px; height: 2px; background: #cfcfcf; flex: none; transform-origin: 0 50%; }
+
+  /* end card */
+  #end { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #end .word { font-size: 92px; font-weight: 700; letter-spacing: -0.045em; margin-top: 34px; }
+  #end .line { font-size: 32px; color: var(--muted); margin-top: 18px; letter-spacing: -0.01em; }
+  #end .pill { margin-top: 54px; font-size: 19px; font-weight: 500; color: #fff; background: var(--ink); padding: 14px 26px; border-radius: 999px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="blob" id="b1" style="width:900px;height:900px;background:#d4d4d4;"></div>
+  <div class="blob" id="b2" style="width:760px;height:760px;background:#c6c6c6;opacity:.55"></div>
+  <div class="blob" id="b3" style="width:620px;height:620px;background:#dedede;"></div>
+
+  <!-- S1 brand -->
+  <div class="abs" id="brand" style="width:1920px;height:1080px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+    <div class="mark" id="mark1"><i style="height:48px"></i><i style="height:76px"></i><i style="height:64px"></i><i style="height:44px"></i></div>
+    <div class="h xl" id="word1" style="margin-top:36px;letter-spacing:-0.045em;font-weight:700">MoneyMate</div>
+    <div class="sub" id="tag1" style="margin-top:16px;max-width:none;font-size:30px">Your AI agent for tuition and money across borders</div>
+  </div>
+
+  <!-- S2 problem -->
+  <div class="block" id="B2a" style="width:1000px"><div class="h xl">Every semester, students move money across borders.</div></div>
+  <div class="block" id="B2b" style="width:1000px"><div class="h xl">And scammers know it.</div></div>
+  <div class="glass chip abs" id="c1"><div class="ic"><svg viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></div><div><div class="t">Tuition</div><div class="s">Pearl River University</div></div><div class="amt">¥26,000</div></div>
+  <div class="glass chip abs" id="c2"><div class="ic"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></div><div><div class="t">Rent</div><div class="s">Landlord · monthly</div></div><div class="amt">¥2,800</div></div>
+  <div class="glass chip abs" id="c3"><div class="ic"><svg viewBox="0 0 24 24"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/></svg></div><div><div class="t">Family</div><div class="s">To mother · Dhaka</div></div><div class="amt">¥1,500</div></div>
+  <div class="glass chip scam abs" id="c4"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></div><div><div class="t">URGENT: pay today</div><div class="s">"15% off tuition via WeChat"</div></div><div class="amt" style="color:var(--bad)">¥22,100</div></div>
+
+  <!-- phone + scene text -->
+  <div class="block" id="B3a"><div class="eyebrow"><span class="dot"></span>Meet MoneyMate</div><div class="h">Your AI agent for tuition and money across borders.</div></div>
+  <div class="block" id="B3b"><div class="h">Ask in plain words. It plans the rest.</div><div class="sub">Short on yuan? It converts first, then pays, with a single verification.</div></div>
+  <div class="block" id="B4a"><div class="h">It prepares every payment. Only your fingerprint completes it.</div><div class="sub">No auto-pay. Not even for scheduled payments.</div></div>
+  <div class="block" id="B4b"><div class="h">Every payment gets a receipt anyone can verify.</div><div class="sub">A signed code, a QR, and a blockchain anchor.</div></div>
+  <div class="block" id="B5a"><div class="h">Got a message asking for money?</div><div class="sub">Paste it. MoneyMate checks it before anything moves.</div></div>
+  <div class="block" id="B5b"><div class="h">Scams are stopped before money moves.</div>
+    <div style="margin-top:34px">
+      <div class="glass threat" id="t1"><div class="x"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></div><div class="t">Fake tuition account</div><div class="b">Blocked</div></div>
+      <div class="glass threat" id="t2"><div class="x"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></div><div class="t">Money-mule transfer</div><div class="b">Blocked</div></div>
+      <div class="glass threat" id="t3"><div class="x"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></div><div class="t">Prompt injection</div><div class="b">Ignored</div></div>
+    </div>
+  </div>
+  <div class="block" id="B6a"><div class="h">Build a record landlords and banks trust.</div><div class="sub">Rent, tuition and family support, on time, month by month.</div></div>
+  <div class="block" id="B6b"><div class="h">Share it. They verify it with one scan.</div><div class="sub">No account needed. Payees and amounts stay private.</div></div>
+  <div class="block" id="B7"><div class="h">Every action, sealed on-chain.</div><div class="sub">A SHA-256 hash chain, anchored on Ethereum Sepolia. Nobody can rewrite it.</div>
+    <div id="chain">
+      <div class="glass blk" id="k1"><div class="n">Record 213</div><div class="hh">9e0f…b550</div></div><div class="lnk" id="l1"></div>
+      <div class="glass blk" id="k2"><div class="n">Record 214</div><div class="hh">bf48…5f8a</div></div><div class="lnk" id="l2"></div>
+      <div class="glass blk" id="k3"><div class="n">Record 215</div><div class="hh">8276…b0f8</div></div><div class="lnk" id="l3"></div>
+      <div class="glass blk dark" id="k4"><div class="n">Ethereum Sepolia</div><div class="hh">Block 11,936,384</div></div>
+    </div>
+  </div>
+
+  <div class="abs" id="phoneWrap"><div id="phone"><div id="screen"></div></div></div>
+
+  <div class="abs glass" id="fp">
+    <svg class="ring" width="150" height="150" viewBox="0 0 150 150"><circle cx="75" cy="75" r="70" fill="none" stroke="#e6e6e6" stroke-width="4"/><circle id="fpArc" cx="75" cy="75" r="70" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round" stroke-dasharray="439.8" stroke-dashoffset="439.8"/></svg>
+    <div class="icon" id="fpIcon"><svg viewBox="0 0 24 24" stroke="#111"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg></div>
+    <div class="icon" id="fpOk"><svg viewBox="0 0 24 24" stroke="#1E6B41" style="width:58px;height:58px;stroke-width:2.4"><path id="fpTick" d="M20 6 9 17l-5-5" stroke-dasharray="24" stroke-dashoffset="24"/></svg></div>
+  </div>
+
+  <div class="abs glass" id="vcard">
+    <div class="row"><div class="ok"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div><div><div class="t">Genuine report</div><div class="s">Checked by scanning the QR</div></div></div>
+    <div class="meta"><span>PH-20261017-000001</span><b>93% on time</b></div>
+  </div>
+
+  <div id="end">
+    <div class="mark" id="mark2"><i style="height:48px"></i><i style="height:76px"></i><i style="height:64px"></i><i style="height:44px"></i></div>
+    <div class="word" id="word2">MoneyMate</div>
+    <div class="line" id="line2">The agent prepares. Only the student can pay.</div>
+    <div class="pill" id="pill2">2026 Shenzhen FinTechathon · International Track · Topic C</div>
+  </div>
+  <div id="grain"></div>
+</div>
+
+<script>
+// ---------- easing & helpers ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const E = {
+  outCubic: x => 1 - Math.pow(1 - x, 3),
+  outQuint: x => 1 - Math.pow(1 - x, 5),
+  outExpo: x => x === 1 ? 1 : 1 - Math.pow(2, -10 * x),
+  inCubic: x => x * x * x,
+  inOutCubic: x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2,
+  inOutSine: x => -(Math.cos(Math.PI * x) - 1) / 2,
+};
+const prog = (t, start, dur, ease = E.outCubic) => ease(clamp((t - start) / dur));
+const lerp = (a, b, p) => a + (b - a) * p;
+const $ = id => document.getElementById(id);
+const set = (el, o) => { if (o.op !== undefined) el.style.opacity = o.op;
+  el.style.transform = `translate(${o.x || 0}px, ${o.y || 0}px) scale(${o.s === undefined ? 1 : o.s})`; };
+
+// ---------- phone geometry ----------
+const PHONE = { cx: 1395, cy: 540, w: 430, h: 904 };
+const SCR = 406 / 1080;                         // screenshot px -> screen px
+const phoneLeft = PHONE.cx - PHONE.w / 2, phoneTop = PHONE.cy - PHONE.h / 2;
+const toStage = (x, y) => [phoneLeft + 12 + x * SCR, phoneTop + 12 + y * SCR];
+
+// ---------- text blocks: word-mask reveal ----------
+function splitWords(el) {
+  el.innerHTML = el.textContent.trim().split(/\s+/).map(w => `<span class="w"><span class="wi">${w}</span></span>`).join(' ');
+  return [...el.querySelectorAll('.wi')];
+}
+const blocks = [];
+function block(id, tIn, tOut, y = 'center') {
+  const el = $(id);
+  const heads = [...el.querySelectorAll('.h')];
+  const words = heads.flatMap(splitWords);
+  const subs = [...el.querySelectorAll('.sub, .eyebrow')];
+  blocks.push({ el, tIn, tOut, words, subs, y });
+}
+block('B2a', 5.25, 8.15); block('B2b', 8.45, 10.5);
+block('B3a', 11.55, 13.85); block('B3b', 14.3, 19.35);
+block('B4a', 20.25, 24.15); block('B4b', 24.65, 28.6);
+block('B5a', 29.2, 30.75); block('B5b', 31.1, 37.4);
+block('B6a', 38.3, 41.0); block('B6b', 41.45, 45.45);
+block('B7', 46.45, 52.7);
+
+function layoutBlocks() {                       // vertically centre each block once fonts have loaded
+  for (const b of blocks) { b.el.style.top = `${Math.round(540 - b.el.offsetHeight / 2)}px`; }
+}
+
+function renderBlock(b, t) {
+  const visible = t > b.tIn - .01 && t < b.tOut + .6;
+  b.el.style.visibility = visible ? 'visible' : 'hidden';
+  if (!visible) return;
+  b.words.forEach((w, j) => {
+    const p = prog(t, b.tIn + j * .045, .8, E.outQuint);
+    w.style.transform = `translateY(${(1 - p) * 108}%)`;
+  });
+  b.subs.forEach((s, j) => {
+    const start = s.classList.contains('eyebrow') ? b.tIn - .15 : b.tIn + .28 + Math.min(b.words.length, 10) * .03;
+    const p = prog(t, start, .8, E.outQuint);
+    s.style.opacity = p; s.style.transform = `translateY(${(1 - p) * 18}px)`;
+  });
+  const o = prog(t, b.tOut, .5, E.inOutCubic);
+  b.el.style.opacity = 1 - o;
+  b.el.style.transform = `translateY(${-o * 26}px)`;
+}
+
+// ---------- phone screens ----------
+const shots = [
+  { img: '01-home', t: 0, type: 'none' },
+  { img: '02-agent', t: 13.95, type: 'push' },
+  { img: '03-verify', t: 19.95, type: 'sheet', top: 445 },
+  { img: '05-receipt', t: 24.45, type: 'zoom' },
+  { img: '06b-filled', t: 29.05, type: 'push' },
+  { img: '07-scam', t: 30.95, type: 'rise' },
+  { img: '09-history', t: 38.05, type: 'push' },
+  { img: '10-report', t: 41.25, type: 'rise' },
+  { img: '04-activity', t: 46.0, type: 'push' },
+  { img: '11-audit', t: 46.95, type: 'sheet', top: 240 },
+];
+const taps = [
+  { t: 13.55, x: 325, y: 1156 }, { t: 19.55, x: 460, y: 1708 }, { t: 30.55, x: 539, y: 2143 },
+  { t: 45.65, x: 539, y: 2143, skip: true }, { t: 46.6, x: 1041, y: 260 },
+].filter(x => !x.skip);
+const screen = $('screen');
+const R_SHEET = 34 * (1080 / 393) * SCR;       // sheet corner radius on screen
+
+for (const s of shots) {
+  const L = document.createElement('div'); L.className = 'layer';
+  if (s.type === 'sheet') {
+    const top = document.createElement('div'); top.className = 'layer';
+    top.style.clipPath = `inset(0 0 ${880 - s.top * SCR}px 0)`;
+    top.innerHTML = `<img src="shots/${s.img}.png">`;
+    const bot = document.createElement('div'); bot.className = 'layer';
+    bot.style.clipPath = `inset(${s.top * SCR}px 0 0 0 round ${R_SHEET}px ${R_SHEET}px 0 0)`;
+    bot.innerHTML = `<img src="shots/${s.img}.png">`;
+    L.append(top, bot); s.topEl = top; s.botEl = bot;
+  } else {
+    L.innerHTML = `<img src="shots/${s.img}.png">`;
+  }
+  screen.appendChild(L); s.el = L;
+}
+const dim = document.createElement('div'); dim.className = 'layer'; dim.style.background = 'rgba(17,17,17,.32)'; screen.appendChild(dim);
+for (const tp of taps) { const d = document.createElement('div'); d.className = 'tap';
+  d.style.left = `${tp.x * SCR}px`; d.style.top = `${tp.y * SCR}px`; screen.appendChild(d); tp.el = d; }
+
+function renderScreens(t) {
+  shots.forEach((s, i) => {
+    const next = shots[i + 1];
+    const covered = next && t > next.t + 1.0;   // fully hidden under the next shot
+    const before = t < s.t;
+    s.el.style.visibility = (before || covered) ? 'hidden' : 'visible';
+    if (before || covered) return;
+    const p = s.type === 'none' ? 1 : prog(t, s.t, .75, E.outQuint);
+    // outgoing motion when the next shot pushes in
+    let outX = 0;
+    if (next && next.type === 'push') outX = -prog(t, next.t, .75, E.outQuint) * 120;
+    if (s.type === 'push') { s.el.style.transform = `translateX(${(1 - p) * 406 * .9 + outX}px)`; s.el.style.opacity = 1;
+      s.el.style.boxShadow = p < 1 ? `-20px 0 40px rgba(0,0,0,${.12 * (1 - p)})` : 'none'; }
+    else if (s.type === 'zoom') { s.el.style.transform = `translateX(${outX}px) scale(${lerp(.94, 1, p)})`; s.el.style.opacity = prog(t, s.t, .45, E.outCubic); }
+    else if (s.type === 'rise') { s.el.style.transform = `translate(${outX}px, ${(1 - p) * 26}px)`; s.el.style.opacity = prog(t, s.t, .5, E.outCubic); }
+    else if (s.type === 'sheet') {
+      s.el.style.transform = `translateX(${outX}px)`;
+      s.topEl.style.opacity = prog(t, s.t, .45, E.outCubic);
+      const q = prog(t, s.t, .8, E.outQuint);
+      s.botEl.style.transform = `translateY(${(1 - q) * (880 - s.top * SCR)}px)`;
+    } else { s.el.style.transform = `translateX(${outX}px)`; }
+  });
+  for (const tp of taps) {
+    const p = clamp((t - tp.t) / .6);
+    const on = t >= tp.t && t <= tp.t + .6;
+    tp.el.style.visibility = on ? 'visible' : 'hidden';
+    if (on) { tp.el.style.transform = `scale(${lerp(.35, 1.5, E.outCubic(p))})`;
+      tp.el.style.opacity = (p < .15 ? p / .15 : 1) * (1 - E.inCubic(p)) * .9; }
+  }
+}
+
+// ---------- render(t) ----------
+function render(t) {
+  // background drift
+  set($('b1'), { x: 1180 + Math.sin(t * .23) * 70, y: -260 + Math.cos(t * .19) * 50 });
+  set($('b2'), { x: -260 + Math.cos(t * .17) * 60, y: 480 + Math.sin(t * .21) * 50 });
+  set($('b3'), { x: 600 + Math.sin(t * .13 + 1) * 90, y: 640 + Math.cos(t * .15) * 40 });
+
+  // S1 brand open
+  const bars = [...$('mark1').children];
+  bars.forEach((b, i) => { const p = prog(t, .25 + i * .09, .9, E.outQuint);
+    b.style.transform = `scaleY(${Math.max(p, .001)})`; b.style.opacity = clamp(p * 3); });
+  const wp = prog(t, .9, .9, E.outQuint), tg = prog(t, 1.35, .9, E.outQuint);
+  set($('word1'), { y: (1 - wp) * 30, op: wp });
+  set($('tag1'), { y: (1 - tg) * 18, op: tg });
+  const bo = prog(t, 4.3, .7, E.inOutCubic);
+  set($('brand'), { y: -bo * 40, op: 1 - bo, s: 1 - bo * .03 });
+  $('brand').style.visibility = t < 5.05 ? 'visible' : 'hidden';
+
+  // S2 chips
+  const chipPos = [[1250, 300], [1340, 445], [1250, 590], [1340, 735]];
+  ['c1', 'c2', 'c3', 'c4'].forEach((id, i) => {
+    const tin = i < 3 ? 6.15 + i * .2 : 8.75;
+    const p = prog(t, tin, .9, E.outQuint), out = prog(t, 10.35 + i * .05, .55, E.inOutCubic);
+    const dim = i < 3 ? prog(t, 8.75, .6, E.inOutCubic) * .45 : 0;
+    const fl = Math.sin(t * .8 + i * 1.3) * 5;
+    set($(id), { x: chipPos[i][0] + (1 - p) * 60, y: chipPos[i][1] + fl - out * 24, op: p * (1 - out) * (1 - dim) });
+    $(id).style.visibility = t > tin && t < 11 ? 'visible' : 'hidden';
+  });
+
+  // text blocks
+  for (const b of blocks) renderBlock(b, t);
+
+  // phone
+  const pin = prog(t, 11.0, 1.1, E.outQuint), pout = prog(t, 52.9, .9, E.inOutCubic);
+  const float = Math.sin(t * .55) * 5;
+  const push = lerp(1, 1.025, E.inOutSine(clamp((t - 14.6) / 4.6))) * (t < 19.3 ? 1 : 1) ;
+  set($('phoneWrap'), { x: phoneLeft, y: phoneTop + (1 - pin) * 160 + pout * 70 + float, op: pin * (1 - pout), s: lerp(.95, 1, pin) * lerp(1, .97, pout) });
+  $('phoneWrap').style.visibility = t > 10.9 && t < 54 ? 'visible' : 'hidden';
+  renderScreens(t);
+
+  // fingerprint: the screen dims and the badge sits centred over it, like the system biometric prompt
+  const [fx, fy] = toStage(540, 1330);
+  dim.style.opacity = prog(t, 21.95, .55, E.outCubic) * (1 - prog(t, 24.2, .45, E.inOutCubic));
+  const fin = prog(t, 22.0, .7, E.outQuint), fout = prog(t, 24.25, .45, E.inOutCubic);
+  set($('fp'), { x: fx - 75, y: fy - 75 + float, op: fin * (1 - fout), s: lerp(.8, 1, fin) * lerp(1, .9, fout) });
+  $('fp').style.visibility = t > 22 && t < 24.8 ? 'visible' : 'hidden';
+  const arc = prog(t, 22.35, 1.15, E.inOutCubic);
+  $('fpArc').style.strokeDashoffset = 439.8 * (1 - arc);
+  const done = prog(t, 23.5, .35, E.outCubic);
+  $('fpArc').style.stroke = done > .5 ? '#1E6B41' : '#111';
+  $('fpIcon').style.opacity = 1 - done;
+  $('fpOk').style.opacity = done;
+  $('fpTick').style.strokeDashoffset = 24 * (1 - prog(t, 23.55, .45, E.outCubic));
+
+  // threat badges
+  ['t1', 't2', 't3'].forEach((id, i) => { const p = prog(t, 32.3 + i * .32, .8, E.outQuint);
+    set($(id), { x: (1 - p) * -30, op: p }); });
+
+  // verify card
+  const [vx, vy] = toStage(0, 1720);
+  const vin = prog(t, 42.55, .8, E.outQuint), vout = prog(t, 45.3, .5, E.inOutCubic);
+  set($('vcard'), { x: vx - 300 + (1 - vin) * 30, y: vy + float, op: vin * (1 - vout), s: lerp(.96, 1, vin) });
+  $('vcard').style.visibility = t > 42.5 && t < 46 ? 'visible' : 'hidden';
+
+  // hash chain
+  ['k1', 'k2', 'k3', 'k4'].forEach((id, i) => { const p = prog(t, 47.9 + i * .38, .7, E.outQuint);
+    set($(id), { y: (1 - p) * 16, op: p, s: lerp(.94, 1, p) }); });
+  ['l1', 'l2', 'l3'].forEach((id, i) => { const p = prog(t, 48.2 + i * .38, .4, E.outCubic);
+    $(id).style.transform = `scaleX(${p})`; });
+
+  // end card
+  const bars2 = [...$('mark2').children];
+  bars2.forEach((b, i) => { const p = prog(t, 53.75 + i * .09, .9, E.outQuint);
+    b.style.transform = `scaleY(${Math.max(p, .001)})`; b.style.opacity = clamp(p * 3); });
+  const w2 = prog(t, 54.25, .9, E.outQuint), l2 = prog(t, 54.85, .9, E.outQuint), p2 = prog(t, 55.5, .9, E.outQuint);
+  set($('word2'), { y: (1 - w2) * 30, op: w2 });
+  set($('line2'), { y: (1 - l2) * 18, op: l2 });
+  set($('pill2'), { y: (1 - p2) * 14, op: p2 });
+  const fade = prog(t, 59.1, .9, E.inOutCubic);
+  $('end').style.opacity = 1 - fade;
+  $('end').style.visibility = t > 53.6 ? 'visible' : 'hidden';
+}
+
+window.ready = (async () => {
+  await document.fonts.ready;
+  await Promise.all([...document.images].map(i => i.decode().catch(() => {})));
+  layoutBlocks();
+  render(0);
+  return true;
+})();
+window.render = render;
+</script>
+</body>
+</html>
