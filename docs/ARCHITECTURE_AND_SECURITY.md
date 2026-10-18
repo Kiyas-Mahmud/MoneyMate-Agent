@@ -337,4 +337,4 @@ are in [`app/docs/screens/`](../app/docs/screens/).
 The sandbox operation log ([`docs/evidence/sandbox/`](evidence/sandbox/SANDBOX_OPERATION_LOG.pdf)) records 11
 scenarios run against the live backend through the app's API: every request and response, the policy tier, the
 fingerprint signatures and the resulting audit entries (34 of 34 checks passed). The run's audit head is
-anchored on Ethereum Sepolia in block 11929233.
+anchored on Ethereum Sepolia in block 11929265.

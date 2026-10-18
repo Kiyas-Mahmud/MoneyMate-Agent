@@ -387,8 +387,8 @@ cd backend && .venv/bin/python -m scripts.sandbox_evidence
 
 The script resets the sandbox and runs 11 scenarios through the same API the app uses, with the fingerprint
 step signed by a simulated Keystore key. It writes the report and raw logs to
-[docs/evidence/sandbox/](docs/evidence/sandbox/). Latest run: **34 of 34 checks passed**, audit entries #155–#177,
-anchored in Sepolia block 11929233 ([PDF report](docs/evidence/sandbox/SANDBOX_OPERATION_LOG.pdf)).
+[docs/evidence/sandbox/](docs/evidence/sandbox/). Latest run: **34 of 34 checks passed**, audit entries #180–#204,
+anchored in Sepolia block 11929265 ([PDF report](docs/evidence/sandbox/SANDBOX_OPERATION_LOG.pdf)).
 
 **On-chain evidence.** The first anchor:
 [`0xef955ff4…f8a754`](https://sepolia.etherscan.io/tx/0xef955ff4bbebe03e56a681724df109f62fb3c4aa90d986535ea1bc4ff3f8a754)
