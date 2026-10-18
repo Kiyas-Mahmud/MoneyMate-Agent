@@ -1,5 +1,7 @@
 # MoneyMate Agent: Security Self-Assessment
 
+> A plain-language version of this report, for judges, is in [SECURITY_SELF_ASSESSMENT_REPORT.pdf](SECURITY_SELF_ASSESSMENT_REPORT.pdf) ([Markdown](SECURITY_SELF_ASSESSMENT_REPORT.md)). This file is the detailed technical version, with file and line references.
+
 **Deliverable 05: permission-tier implementation, payment verification and known-risk list**
 
 2026 Shenzhen International FinTech Competition (FinTechathon), International Track, Topic C
