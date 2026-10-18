@@ -267,6 +267,8 @@ exists for API demos only; the server refuses to start with it in production.
 
 ### 2.10 Blockchain anchoring of the audit log
 
+![Audit hash chain and blockchain anchoring](diagrams/audit-anchoring.svg)
+
 The audit log's hash chain shows any edit **unless** someone rewrites the whole chain consistently, which a
 database administrator could do. To close that gap, MoneyMate writes the latest entry's hash to a public
 Ethereum **test** network (Sepolia) once a day:

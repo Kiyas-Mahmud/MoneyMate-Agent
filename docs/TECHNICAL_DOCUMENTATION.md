@@ -250,6 +250,8 @@ own wallets (`kind = "FX"`) are not counted.
 
 ### 5.1 Architecture
 
+![Hybrid fraud model](diagrams/hybrid-risk-model.png)
+
 Training code: `backend/ml/train_hybrid.py`; shared scorer: `backend/app/services/risk/hybrid.py`.
 
 | Base learner | Implementation | Role |
@@ -642,6 +644,9 @@ There is **no auto-execute tier**. The former T1 tier and its settings (`AUTO_EX
   compares every confirmed anchor, fetched from the chain, with the log, so a consistent rewrite of anchored
   history is detected. Test networks only, hashes only, never in the payment path. Details:
   [`ARCHITECTURE_AND_SECURITY.md`](ARCHITECTURE_AND_SECURITY.md) §2.10.
+
+  ![Audit hash chain and blockchain anchoring](diagrams/audit-anchoring.png)
+
 - **Data minimisation in responses:** account numbers are masked to the last four digits in transaction,
   payee and receipt views.
 
