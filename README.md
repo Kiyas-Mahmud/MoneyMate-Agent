@@ -12,6 +12,10 @@ scores fraud risk with a hybrid machine-learning model. **It never moves money o
 the student to verify it on their Android phone with a fingerprint, which signs a one-time challenge with a key in
 the phone's secure hardware.
 
+When the study-currency wallet is short, the student can ask family at home for money: the app shows what the
+family must send through each provider, cheapest first, at live mid-market rates, and an Exchange rates screen
+shows the current market rates and what each provider charges.
+
 Scam requests (fake tuition accounts, money-mule transfers, prompt injection in pasted messages) are blocked before
 money moves. Every action is written to a hash-chained audit log that is anchored on the Ethereum Sepolia test
 network, so it can't be rewritten unnoticed.
@@ -114,7 +118,7 @@ flutter build apk --release \
 ## Test cases
 
 ```bash
-cd backend && python -m pytest -q        # 86 backend tests
+cd backend && python -m pytest -q        # 94 backend tests
 cd app && flutter test                   # 15 app tests
 ```
 
@@ -128,5 +132,6 @@ All tests pass. The backend tests use a fresh database and no network; they play
 | `backend/tests/test_features.py` | 23 | Tuition reminders; receipts verify and fail after any change; live exchange rates with offline fallback; the AI second opinion can raise a scam warning but never lower it; Gemini model fallback and timeout |
 | `backend/tests/test_anchor.py` | 9 | The blockchain anchor holds the audit log's hash; a rewritten log is caught; mainnet and wrong networks are refused; an empty wallet sends nothing; a blockchain outage never blocks payments |
 | `backend/tests/test_history.py` | 8 | Payments counted on time, late or missed; a report verifies publicly without showing payees; report PDFs are private |
+| `backend/tests/test_funds.py` | 8 | Exchange rates for every currency pair; only family members can be asked; providers listed cheapest first; a request moves no money until the family's transfer arrives; family money is not flagged as a stranger's and does not block the next payment; a request cannot arrive twice or after cancelling; requests are private |
 | `backend/tests/test_android.py` | 7 | A P-256 phone key verifies a payment; wrong key curve refused; new-phone alert; push token rotation; push failure doesn't break a payment |
 | `app/test/` | 15 | Payment action cards, number and date formatting, and the blockchain anchor line on receipts |

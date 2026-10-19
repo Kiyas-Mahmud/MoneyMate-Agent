@@ -11,11 +11,13 @@ import '../features/auth/login.dart';
 import '../features/auth/onboarding.dart';
 import '../features/auth/register.dart';
 import '../features/auth/splash.dart';
+import '../features/funds/request_money.dart';
 import '../features/history/history.dart';
 import '../features/home/home.dart';
 import '../features/notifications/notifications.dart';
 import '../features/pay/pay_menu.dart';
 import '../features/profile/profile.dart';
+import '../features/rates/rates.dart';
 import '../features/receipt/receipt.dart';
 import '../features/safety/safety.dart';
 import '../features/scam/scam_input.dart';
@@ -130,6 +132,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             from: s.uri.queryParameters['from'],
             to: s.uri.queryParameters['to'],
             receive: double.tryParse(s.uri.queryParameters['receive'] ?? ''),
+          ),
+        ),
+      ),
+      GoRoute(path: '/rates', pageBuilder: (c, s) => sharedAxisPage(s, const RatesScreen())),
+      GoRoute(
+        path: '/request',
+        pageBuilder: (c, s) => sharedAxisPage(
+          s,
+          RequestMoneyScreen(
+            amount: double.tryParse(s.uri.queryParameters['amount'] ?? ''),
+            reason: s.uri.queryParameters['reason'],
           ),
         ),
       ),

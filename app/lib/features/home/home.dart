@@ -159,9 +159,12 @@ class _BalanceCard extends StatelessWidget {
             children: [
               const Text('Total balance', style: TextStyle(fontSize: 13, color: AppColors.muted)),
               const Spacer(),
-              Text(
-                '${data.liveRates ? 'Live rates' : 'Saved rates'} · ${data.ratesAsOf}',
-                style: const TextStyle(fontSize: 11, color: AppColors.muted),
+              GestureDetector(
+                onTap: () => context.push('/rates'),
+                child: Text(
+                  '${data.liveRates ? 'Live rates' : 'Saved rates'} · ${data.ratesAsOf}  ›',
+                  style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                ),
               ),
             ],
           ),
@@ -307,24 +310,44 @@ class _TuitionCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (convert != null) ...[
-                  const SizedBox(width: 8),
-                  _SmallButton(
-                    label: 'Convert ${money(convert['amount'] as num, convert['from_currency'] as String)}',
-                    onTap: () => context.push(
-                      Uri(
-                        path: '/wallet',
-                        queryParameters: {
-                          'from': convert['from_currency'],
-                          'to': convert['to_currency'],
-                          'receive': '${convert['receives']}',
-                        },
-                      ).toString(),
-                    ),
-                  ),
-                ],
               ],
             ),
+            if (shortfall > 0 || convert != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  if (shortfall > 0)
+                    Expanded(
+                      child: _SmallButton(
+                        label: 'Ask family',
+                        onTap: () => context.push(
+                          Uri(
+                            path: '/request',
+                            queryParameters: {'amount': '${shortfall.ceil()}', 'reason': '${t['semester']} tuition'},
+                          ).toString(),
+                        ),
+                      ),
+                    ),
+                  if (shortfall > 0 && convert != null) const SizedBox(width: 8),
+                  if (convert != null)
+                    Expanded(
+                      child: _SmallButton(
+                        label: 'Convert ${money(convert['amount'] as num, convert['from_currency'] as String)}',
+                        onTap: () => context.push(
+                          Uri(
+                            path: '/wallet',
+                            queryParameters: {
+                              'from': convert['from_currency'],
+                              'to': convert['to_currency'],
+                              'receive': '${convert['receives']}',
+                            },
+                          ).toString(),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

@@ -34,6 +34,8 @@ class PayMenu extends ConsumerWidget {
       (LucideIcons.send, 'Send money', 'Cheapest route', '/send'),
       (LucideIcons.arrowLeftRight, 'Convert', 'Live rates', '/wallet'),
       (LucideIcons.shieldCheck, 'Scam check', 'Paste a message', '/scam'),
+      (LucideIcons.handHeart, 'Ask family', 'Money from home', '/request'),
+      (LucideIcons.chartLine, 'Exchange rates', 'Market rate', '/rates'),
     ];
 
     // Replace the sheet with the chosen screen, so Back returns to where the student was.

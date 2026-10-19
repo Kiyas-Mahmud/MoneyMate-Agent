@@ -119,3 +119,26 @@ class PaymentReport(Base):
     months: Mapped[int] = mapped_column()
     fields: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FundRequest(Base):
+    """The student asks family at home for money (e.g. a tuition shortfall). The family sends it through a
+    remittance provider; in the sandbox the arrival is simulated with that provider's live-rate quote."""
+
+    __tablename__ = "fund_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    payee_id: Mapped[int] = mapped_column(ForeignKey("payees.id"))  # the family member asked
+    amount: Mapped[float] = mapped_column(Float)                     # what the student needs to receive
+    currency: Mapped[str] = mapped_column(String(3))                 # study currency, e.g. CNY
+    send_currency: Mapped[str] = mapped_column(String(3))            # family's currency, e.g. BDT
+    reason: Mapped[str | None] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(12), default="REQUESTED")  # REQUESTED | RECEIVED | CANCELLED
+    provider_id: Mapped[str | None] = mapped_column(String(20))
+    send_amount: Mapped[float | None] = mapped_column(Float)
+    fee: Mapped[float | None] = mapped_column(Float)
+    rate: Mapped[float | None] = mapped_column(Float)
+    transaction_id: Mapped[int | None] = mapped_column(ForeignKey("transactions.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

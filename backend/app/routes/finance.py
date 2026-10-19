@@ -223,3 +223,80 @@ def verify_receipt(reference: str, code: str, db: Session = Depends(get_db)):
         tx = db.get(Transaction, receipts._id_from_reference(reference))
         result["anchor"] = anchor.status_for(db, tx.user_id, "PAYMENT_VERIFIED", "transaction_id", tx.id)
     return result
+
+
+# ---- exchange rates and money requests to family --------------------------------------------------------
+from app.services import funds  # noqa: E402
+
+
+class FundRequestIn(BaseModel):
+    payee_id: int
+    amount: float = Field(gt=0)
+    currency: str | None = None
+    reason: str | None = Field(default=None, max_length=200)
+
+
+class FundReceiveIn(BaseModel):
+    provider_id: str
+
+
+def _funds_guard(fn, db: Session):
+    try:
+        result = fn()
+        db.commit()
+        return result
+    except (funds.FundsError, sandbox.SandboxError) as e:
+        db.rollback()
+        raise HTTPException(400, str(e))
+
+
+@router.get("/fx/rates")
+def fx_rates(user: User = Depends(get_current_user)):
+    """Live mid-market rates between BDT, CNY and USD, with the best provider for each pair."""
+    return funds.rates()
+
+
+@router.get("/funds/family")
+def funds_family(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return funds.family_members(db, user)
+
+
+@router.get("/funds/quote")
+def funds_quote(amount: float, currency: str | None = None, from_currency: str | None = None,
+                user: User = Depends(get_current_user)):
+    """What family must send, through each provider (cheapest first), for the student to receive `amount`."""
+    try:
+        dst = sandbox.check_currency(currency or user.study_currency)
+        src = sandbox.check_currency(from_currency or user.home_currency)
+    except sandbox.SandboxError as e:
+        raise HTTPException(400, str(e))
+    if amount <= 0:
+        raise HTTPException(400, "Amount must be positive")
+    return {"options": funds.options(amount, src, dst)}
+
+
+@router.get("/funds/requests")
+def funds_requests(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.models import FundRequest
+
+    rows = db.scalars(select(FundRequest).where(FundRequest.user_id == user.id).order_by(FundRequest.id.desc())
+                      .limit(20)).all()
+    return [funds.view(db, r) for r in rows]
+
+
+@router.post("/funds/requests", status_code=201)
+def funds_request(body: FundRequestIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return _funds_guard(lambda: funds.view(db, funds.create(db, user, payee_id=body.payee_id, amount=body.amount,
+                                                             currency=body.currency, reason=body.reason)), db)
+
+
+@router.post("/funds/requests/{request_id}/receive")
+def funds_receive(request_id: int, body: FundReceiveIn, user: User = Depends(get_current_user),
+                  db: Session = Depends(get_db)):
+    """Sandbox: simulate the family's transfer arriving through the provider they used."""
+    return _funds_guard(lambda: funds.view(db, funds.receive(db, user, request_id, body.provider_id)), db)
+
+
+@router.post("/funds/requests/{request_id}/cancel")
+def funds_cancel(request_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return _funds_guard(lambda: funds.view(db, funds.cancel(db, user, request_id)), db)

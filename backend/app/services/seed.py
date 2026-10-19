@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import hash_password
-from app.models import (AgentAction, ChatMessage, Notification, Payee, PaymentReport, StandingInstruction,
+from app.models import (AgentAction, ChatMessage, FundRequest, Notification, Payee, PaymentReport, StandingInstruction,
                         Transaction, TuitionInvoice, User, Wallet)
 from app.services import audit, sandbox
 
@@ -149,6 +149,7 @@ def provision_student(db: Session, user: User, with_history: bool):
 def _wipe(db: Session, user: User):
     uid = user.id
     db.execute(delete(PaymentReport).where(PaymentReport.user_id == uid))
+    db.execute(delete(FundRequest).where(FundRequest.user_id == uid))
     db.execute(delete(TuitionInvoice).where(TuitionInvoice.user_id == uid))
     db.execute(delete(StandingInstruction).where(StandingInstruction.user_id == uid))
     db.execute(delete(Notification).where(Notification.user_id == uid))

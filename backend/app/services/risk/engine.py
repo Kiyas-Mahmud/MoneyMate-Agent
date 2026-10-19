@@ -70,10 +70,14 @@ def build_features(db: Session, user: User, *, kind: str, amount_usd: float, pay
             Transaction.status == "COMPLETED")) > 0
 
     # Money received from senders this student has never received from before (mule detection)
+    from app.services.funds import is_family
+
     inbound_new = 0.0
     for tx in db.scalars(select(Transaction).where(
             Transaction.user_id == user.id, Transaction.direction == "IN", Transaction.status == "COMPLETED",
             Transaction.created_at >= now - timedelta(hours=72))).all():
+        if tx.payee_id and is_family(db.get(Payee, tx.payee_id), user.id):
+            continue  # money a saved family member sent on request is not from a stranger
         earlier = db.scalar(select(func.count()).select_from(Transaction).where(
             Transaction.user_id == user.id, Transaction.direction == "IN", Transaction.status == "COMPLETED",
             Transaction.counterparty == tx.counterparty, Transaction.created_at < tx.created_at - timedelta(days=3)))

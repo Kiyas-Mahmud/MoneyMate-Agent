@@ -300,6 +300,10 @@ def maybe_mule_alert(db: Session, user: User, tx: Transaction):
     """Warn the moment a large amount arrives from a sender the student has never received money from."""
     if tx.direction != "IN" or tx.amount_usd < MULE_ALERT_MIN_USD:
         return None
+    from app.services.funds import is_family
+
+    if tx.payee_id and is_family(db.get(Payee, tx.payee_id), user.id):
+        return None  # money from a saved family member, not a stranger
     from app.services.notify import already_sent
 
     earlier = db.scalar(select(Transaction.id).where(
