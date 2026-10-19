@@ -1,102 +1,57 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 600" width="980" height="600" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
-  <style>
-    .panel { fill: #f4f4f4; stroke: #d9d9d9; stroke-width: 1.2; }
-    .box { fill: #ffffff; stroke: #cfcfcf; stroke-width: 1; }
-    .dark { fill: #111111; }
-    .h { font-size: 15px; font-weight: 600; fill: #111; }
-    .n { font-size: 10px; font-weight: 600; fill: #8a8a8a; letter-spacing: .04em; }
-    .t { font-size: 12.5px; font-weight: 600; fill: #111; }
-    .s { font-size: 10.5px; fill: #5c5c5c; }
-    .m { font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 10.5px; fill: #111; }
-    .mw { font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 10.5px; fill: #fff; }
-    .tw { font-size: 12.5px; font-weight: 600; fill: #fff; }
-    .sw { font-size: 10.5px; fill: #cfcfcf; }
-    .arrow { stroke: #111; stroke-width: 1.4; fill: none; marker-end: url(#a); }
-    .dash { stroke: #777; stroke-width: 1.2; fill: none; stroke-dasharray: 5 4; marker-end: url(#a2); }
-    .okbg { fill: #E7F4EC; } .ok { font-size: 11px; font-weight: 600; fill: #1E6B41; }
-    .bbg { fill: #FDECEB; } .b { font-size: 11px; font-weight: 600; fill: #A8231A; }
-  </style>
-  <defs>
-    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111"/></marker>
-    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#777"/></marker>
-  </defs>
-  <rect width="980" height="600" fill="#ffffff"/>
-  <text class="h" x="20" y="30">Audit log: every action is chained, and the chain's head is written to a public blockchain</text>
-
-  <!-- 1 chain -->
-  <text class="n" x="20" y="62">1 · SHA-256 HASH CHAIN (DATABASE)</text>
-  <rect class="box" x="20" y="72" width="200" height="104" rx="16"/>
-  <text class="s" x="36" y="94">Record 201</text>
-  <text class="t" x="36" y="112">TRANSFER_RECEIVED</text>
-  <text class="s" x="36" y="134">prev  <tspan class="m">930f…140c</tspan></text>
-  <text class="s" x="36" y="152">hash  <tspan class="m">8b6c…cdd3</tspan></text>
-
-  <rect class="box" x="260" y="72" width="200" height="104" rx="16"/>
-  <text class="s" x="276" y="94">Record 202</text>
-  <text class="t" x="276" y="112">PAYMENT_BLOCKED</text>
-  <text class="s" x="276" y="134">prev  <tspan class="m">8b6c…cdd3</tspan></text>
-  <text class="s" x="276" y="152">hash  <tspan class="m">e80e…100f</tspan></text>
-
-  <rect class="box" x="500" y="72" width="200" height="104" rx="16"/>
-  <text class="s" x="516" y="94">Record 203</text>
-  <text class="t" x="516" y="112">PAYMENT_BLOCKED</text>
-  <text class="s" x="516" y="134">prev  <tspan class="m">e80e…100f</tspan></text>
-  <text class="s" x="516" y="152">hash  <tspan class="m">c32f…efa2</tspan></text>
-
-  <rect class="dark" x="740" y="72" width="220" height="104" rx="16"/>
-  <text class="sw" x="756" y="94">Record 204 · latest (head)</text>
-  <text class="tw" x="756" y="112">HISTORY_REPORT_ISSUED</text>
-  <text class="sw" x="756" y="134">prev  <tspan class="mw">c32f…efa2</tspan></text>
-  <text class="sw" x="756" y="152">hash  <tspan class="mw">f4ad…c7f8</tspan></text>
-
-  <path class="arrow" d="M220,124 L258,124"/>
-  <path class="arrow" d="M460,124 L498,124"/>
-  <path class="arrow" d="M700,124 L738,124"/>
-
-  <rect class="panel" x="20" y="190" width="940" height="40" rx="14"/>
-  <text class="s" x="36" y="214">hash = SHA-256( previous hash, time, student, actor, event, tier, details )   ·   changing any record changes its hash and breaks every record after it</text>
-
-  <!-- 2 anchor -->
-  <text class="n" x="20" y="266">2 · ANCHOR (DAILY, AFTER THE MONITOR)</text>
-  <path class="arrow" d="M850,176 C850,250 700,250 700,276"/>
-  <rect class="dark" x="420" y="278" width="540" height="150" rx="18"/>
-  <text class="tw" x="440" y="304">Ethereum Sepolia transaction</text>
-  <text class="sw" x="440" y="322">from = to = MoneyMate anchor wallet · value 0 · chain ID 11155111</text>
-  <text class="sw" x="440" y="346">data field (44 bytes):</text>
-  <rect x="440" y="356" width="80" height="30" rx="8" fill="#ffffff"/><text class="m" x="456" y="375">"MMA1"</text>
-  <rect x="524" y="356" width="120" height="30" rx="8" fill="#e6e6e6"/><text class="m" x="538" y="375">entry id 204</text>
-  <rect x="648" y="356" width="292" height="30" rx="8" fill="#cfcfcf"/><text class="m" x="662" y="375">SHA-256 of record 204 (32 bytes)</text>
-  <text class="sw" x="440" y="410">Real example: block 11,929,265 · only hashes go on-chain, never personal data</text>
-
-  <rect class="box" x="20" y="278" width="380" height="150" rx="18"/>
-  <text class="t" x="38" y="302">Why anchor?</text>
-  <text class="s" x="38" y="322">The chain alone stops a single edit. But someone with</text>
-  <text class="s" x="38" y="338">database access could rewrite a record and recompute</text>
-  <text class="s" x="38" y="354">every later hash, so the chain still looks valid.</text>
-  <text class="s" x="38" y="378">A blockchain transaction can't be changed afterwards,</text>
-  <text class="s" x="38" y="394">so the anchored hash pins every record up to it.</text>
-  <text class="s" x="38" y="414">Only test networks are accepted; mainnet is refused.</text>
-
-  <!-- 3 verify -->
-  <text class="n" x="20" y="464">3 · VERIFY (GET /api/audit/verify)</text>
-  <rect class="box" x="20" y="474" width="300" height="106" rx="16"/>
-  <text class="t" x="36" y="498">Check 1 · hash chain</text>
-  <text class="s" x="36" y="516">recompute every hash from record 1</text>
-  <text class="s" x="36" y="540">catches: an edited or deleted record</text>
-
-  <rect class="box" x="340" y="474" width="300" height="106" rx="16"/>
-  <text class="t" x="356" y="498">Check 2 · blockchain</text>
-  <text class="s" x="356" y="516">fetch each anchor transaction from the chain;</text>
-  <text class="s" x="356" y="530">compare sender, entry id and hash with the log</text>
-  <text class="s" x="356" y="554">catches: a consistently rewritten log</text>
-
-  <path class="dash" d="M690,428 L690,470"/>
-  <rect class="panel" x="660" y="474" width="300" height="106" rx="16"/>
-  <text class="t" x="676" y="498">Valid only if both checks hold</text>
-  <rect class="okbg" x="676" y="510" width="128" height="26" rx="13"/><text class="ok" x="690" y="527">Log intact · Matches</text>
-  <rect class="bbg" x="812" y="510" width="132" height="26" rx="13"/><text class="b" x="826" y="527">Mismatch · flagged</text>
-  <text class="s" x="676" y="556">Receipts and reports show "Secured on</text>
-  <text class="s" x="676" y="570">blockchain · block N" with an explorer link</text>
-  <path class="arrow" d="M320,527 L338,527"/>
-  <path class="arrow" d="M640,527 L658,527"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" width="1200" height="480" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
+<style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=block');</style>
+<defs>
+  <marker id="ek" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#111111"/></marker>
+  <marker id="sk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#111111"/></marker>
+  <marker id="eg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#8A8A8A"/></marker>
+  <marker id="sg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#8A8A8A"/></marker>
+</defs>
+<rect width="1200" height="480" fill="#FFFFFF"/>
+<rect x="20" y="24" width="740" height="150" rx="22" fill="#F4F4F4"/>
+<text x="40" y="52" font-size="11.5" font-weight="600" fill="#8A8A8A" text-anchor="start" font-family="inherit" letter-spacing="1.1">DATABASE</text>
+<rect x="800" y="24" width="380" height="150" rx="22" stroke="#D4D4D4" stroke-width="1.2" stroke-dasharray="6 5" fill="#FAFAFA"/>
+<text x="820" y="52" font-size="11.5" font-weight="600" fill="#8A8A8A" text-anchor="start" font-family="inherit" letter-spacing="1.1">PUBLIC BLOCKCHAIN</text>
+<text x="44" y="117" font-size="22" font-weight="600" fill="#6B6B6B" text-anchor="start" font-family="inherit">…</text>
+<rect x="80" y="74" width="190" height="66" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="175.0" y="104.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Record 202</text>
+<text x="175.0" y="123.0" font-size="12" font-weight="400" fill="#6B6B6B" text-anchor="middle" font-family="inherit">SHA-256 hash</text>
+<rect x="310" y="74" width="190" height="66" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="405.0" y="104.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Record 203</text>
+<text x="405.0" y="123.0" font-size="12" font-weight="400" fill="#6B6B6B" text-anchor="middle" font-family="inherit">SHA-256 hash</text>
+<path d="M270,107 L310,107" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="540" y="74" width="190" height="66" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="635.0" y="104.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Record 204</text>
+<text x="635.0" y="123.0" font-size="12" font-weight="400" fill="#6B6B6B" text-anchor="middle" font-family="inherit">latest hash</text>
+<path d="M500,107 L540,107" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<path d="M64,107 L80,107" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="830" y="74" width="320" height="66" rx="14" fill="#111111" stroke="#111111" stroke-width="1.2"/>
+<text x="990.0" y="104.0" font-size="15" font-weight="600" fill="#FFFFFF" text-anchor="middle" font-family="inherit">Sepolia transaction</text>
+<text x="990.0" y="123.0" font-size="12" font-weight="400" fill="#BDBDBD" text-anchor="middle" font-family="inherit">record id + hash</text>
+<path d="M730,107 L830,107" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="755.25" y="83" width="49.5" height="22" rx="11" fill="#FFFFFF"/>
+<text x="780" y="99" font-size="12" font-weight="400" fill="#444444" text-anchor="middle" font-family="inherit">daily</text>
+<rect x="80" y="250" width="280" height="64" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="220.0" y="279.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Check 1 · Hash chain</text>
+<text x="220.0" y="298.0" font-size="12" font-weight="400" fill="#6B6B6B" text-anchor="middle" font-family="inherit">recompute every hash</text>
+<rect x="850" y="250" width="280" height="64" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="990.0" y="279.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Check 2 · Blockchain</text>
+<text x="990.0" y="298.0" font-size="12" font-weight="400" fill="#6B6B6B" text-anchor="middle" font-family="inherit">compare with Sepolia</text>
+<path d="M220,174 L220,250" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<path d="M990,174 L990,250" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<polygon points="605,234.0 700.0,282 605,330.0 510.0,282" fill="#FFFFFF" stroke="#111111" stroke-width="1.4"/>
+<text x="605" y="278" font-size="13.5" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Both</text>
+<text x="605" y="296" font-size="13.5" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">match?</text>
+<path d="M360,282 L510,282" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<path d="M850,282 L700,282" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="420" y="400" width="160" height="50" rx="14" fill="#E7F4EC" stroke="#B9DCC7" stroke-width="1.2"/>
+<text x="500.0" y="430.0" font-size="15" font-weight="600" fill="#1E6B41" text-anchor="middle" font-family="inherit">Log intact</text>
+<rect x="630" y="400" width="160" height="50" rx="14" fill="#FDECEB" stroke="#F0C3BF" stroke-width="1.2"/>
+<text x="710.0" y="430.0" font-size="15" font-weight="600" fill="#A8231A" text-anchor="middle" font-family="inherit">Mismatch</text>
+<line x1="605" y1="330" x2="605" y2="350" stroke="#111111" stroke-width="1.5"/>
+<path d="M605,350 L508.0,350.0 Q500,350 500.0,358.0 L500,400" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<path d="M605,350 L702.0,350.0 Q710,350 710.0,358.0 L710,400" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="481.95" y="364" width="36.1" height="22" rx="11" fill="#FFFFFF"/>
+<text x="500" y="380" font-size="12" font-weight="400" fill="#444444" text-anchor="middle" font-family="inherit">yes</text>
+<rect x="695.3" y="364" width="29.4" height="22" rx="11" fill="#FFFFFF"/>
+<text x="710" y="380" font-size="12" font-weight="400" fill="#444444" text-anchor="middle" font-family="inherit">no</text>
 </svg>

@@ -1,121 +1,76 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 620" width="980" height="620" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
-  <style>
-    .panel { fill: #f4f4f4; stroke: #d9d9d9; stroke-width: 1.2; }
-    .box { fill: #ffffff; stroke: #cfcfcf; stroke-width: 1; }
-    .dark { fill: #111111; }
-    .h { font-size: 15px; font-weight: 600; fill: #111; }
-    .n { font-size: 10px; font-weight: 600; fill: #8a8a8a; letter-spacing: .04em; }
-    .t { font-size: 12.5px; font-weight: 600; fill: #111; }
-    .s { font-size: 10.5px; fill: #5c5c5c; }
-    .g { font-size: 10px; font-weight: 600; fill: #111; letter-spacing: .03em; }
-    .tw { font-size: 12.5px; font-weight: 600; fill: #fff; }
-    .sw { font-size: 10.5px; fill: #cfcfcf; }
-    .arrow { stroke: #111; stroke-width: 1.4; fill: none; marker-end: url(#a); }
-    .thin { stroke: #9a9a9a; stroke-width: 1; fill: none; marker-end: url(#a2); }
-    .okbg { fill: #E7F4EC; } .ok { font-size: 11px; font-weight: 600; fill: #1E6B41; }
-    .wbg { fill: #FFF3D6; } .w { font-size: 11px; font-weight: 600; fill: #8A5300; }
-    .bbg { fill: #FDECEB; } .b { font-size: 11px; font-weight: 600; fill: #A8231A; }
-  </style>
-  <defs>
-    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111"/></marker>
-    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#9a9a9a"/></marker>
-  </defs>
-  <rect width="980" height="620" fill="#ffffff"/>
-  <text class="h" x="20" y="30">Hybrid fraud model: how every payment gets a risk level</text>
-
-  <!-- 1 request -->
-  <text class="n" x="20" y="62">1 · REQUEST</text>
-  <rect class="box" x="20" y="72" width="140" height="120" rx="16"/>
-  <text class="t" x="34" y="96">Payment request</text>
-  <text class="s" x="34" y="114">from the agent, an</text>
-  <text class="s" x="34" y="128">app screen or the</text>
-  <text class="s" x="34" y="142">daily monitor</text>
-  <text class="s" x="34" y="166">e.g. ¥27,000 to</text>
-  <text class="s" x="34" y="180">a new payee abroad</text>
-
-  <!-- 2 features -->
-  <text class="n" x="180" y="62">2 · 20 BEHAVIOURAL FEATURES</text>
-  <rect class="panel" x="180" y="72" width="220" height="372" rx="18"/>
-  <text class="g" x="196" y="96">AMOUNT</text>
-  <text class="s" x="196" y="112">amount (USD), log amount</text>
-  <text class="s" x="196" y="126">amount ÷ usual payment (90 d)</text>
-  <text class="s" x="196" y="140">sent out in last 24 h</text>
-  <text class="g" x="196" y="166">PAYEE</text>
-  <text class="s" x="196" y="182">first payment to this payee</text>
-  <text class="s" x="196" y="196">in verified institution registry</text>
-  <text class="s" x="196" y="210">private person or institution</text>
-  <text class="s" x="196" y="224">name looks official, account differs</text>
-  <text class="g" x="196" y="250">CONTEXT</text>
-  <text class="s" x="196" y="266">type: tuition · remittance · card</text>
-  <text class="s" x="196" y="280">hour, night-time</text>
-  <text class="s" x="196" y="294">country mismatch</text>
-  <text class="s" x="196" y="308">crypto / gift card / e-wallet</text>
-  <text class="s" x="196" y="322">account age</text>
-  <text class="g" x="196" y="348">BEHAVIOUR</text>
-  <text class="s" x="196" y="364">payments in last 24 h</text>
-  <text class="s" x="196" y="378">money from new senders (72 h)</text>
-  <text class="s" x="196" y="392">pass-through ratio (mule pattern)</text>
-  <text class="s" x="196" y="406">pressure words: urgent, discount,</text>
-  <text class="s" x="196" y="420">threat (0–3)</text>
-
-  <!-- 3 base models -->
-  <text class="n" x="430" y="62">3 · SIX BASE MODELS</text>
-  <rect class="box" x="430" y="72" width="170" height="44" rx="12"/><text class="t" x="444" y="92">Logistic Regression</text><text class="s" x="444" y="107">p(fraud)</text>
-  <rect class="box" x="430" y="124" width="170" height="44" rx="12"/><text class="t" x="444" y="144">Random Forest</text><text class="s" x="444" y="159">p(fraud)</text>
-  <rect class="box" x="430" y="176" width="170" height="44" rx="12"/><text class="t" x="444" y="196">XGBoost</text><text class="s" x="444" y="211">p(fraud) · also explains</text>
-  <rect class="box" x="430" y="228" width="170" height="44" rx="12"/><text class="t" x="444" y="248">HistGradientBoosting</text><text class="s" x="444" y="263">p(fraud)</text>
-  <rect class="box" x="430" y="280" width="170" height="44" rx="12"/><text class="t" x="444" y="300">Feed-forward network</text><text class="s" x="444" y="315">p(fraud)</text>
-  <rect class="box" x="430" y="332" width="170" height="56" rx="12"/><text class="t" x="444" y="352">Autoencoder</text><text class="s" x="444" y="367">anomaly score, trained on</text><text class="s" x="444" y="380">legitimate payments only</text>
-
-  <!-- 4 meta -->
-  <text class="n" x="630" y="62">4 · STACKING</text>
-  <rect class="dark" x="630" y="160" width="150" height="128" rx="16"/>
-  <text class="tw" x="646" y="186">Meta-learner</text>
-  <text class="sw" x="646" y="204">logistic regression on</text>
-  <text class="sw" x="646" y="218">out-of-fold scores of</text>
-  <text class="sw" x="646" y="232">the six models</text>
-  <text class="tw" x="646" y="266">risk score 0 – 1</text>
-
-  <!-- 5 levels -->
-  <text class="n" x="810" y="62">5 · RISK LEVEL</text>
-  <rect class="okbg" x="810" y="150" width="150" height="40" rx="20"/><text class="ok" x="826" y="166">LOW</text><text class="s" x="826" y="181">score &lt; 0.10</text>
-  <rect class="wbg" x="810" y="204" width="150" height="40" rx="20"/><text class="w" x="826" y="220">MEDIUM</text><text class="s" x="826" y="235">0.10 – 0.70</text>
-  <rect class="bbg" x="810" y="258" width="150" height="40" rx="20"/><text class="b" x="826" y="274">HIGH</text><text class="s" x="826" y="289">score ≥ 0.70</text>
-
-  <!-- arrows -->
-  <path class="arrow" d="M160,132 L178,132"/>
-  <path class="arrow" d="M400,230 L428,230"/>
-  <path class="thin" d="M600,94 C615,94 615,200 628,206"/>
-  <path class="thin" d="M600,146 C613,146 613,206 628,212"/>
-  <path class="thin" d="M600,198 L628,218"/>
-  <path class="thin" d="M600,250 L628,226"/>
-  <path class="thin" d="M600,302 C613,302 613,236 628,232"/>
-  <path class="thin" d="M600,360 C615,360 615,244 628,238"/>
-  <path class="arrow" d="M780,224 L808,224"/>
-  <path class="thin" d="M790,224 C796,224 796,170 808,170"/>
-  <path class="thin" d="M790,224 C796,224 796,278 808,278"/>
-
-  <!-- policy -->
-  <text class="n" x="630" y="340">6 · POLICY DECIDES</text>
-  <rect class="box" x="630" y="350" width="330" height="94" rx="16"/>
-  <text class="t" x="646" y="372">LOW or MEDIUM → T2 Verify</text>
-  <text class="s" x="646" y="388">prepared, then waits for the student's fingerprint</text>
-  <text class="t" x="646" y="412">HIGH → T3 Block</text>
-  <text class="s" x="646" y="428">refused with reasons; never offered for verification</text>
-
-  <!-- bottom row -->
-  <rect class="panel" x="20" y="464" width="460" height="136" rx="18"/>
-  <text class="t" x="38" y="490">Plain-language reasons (TreeSHAP)</text>
-  <text class="s" x="38" y="508">The XGBoost model's feature contributions are turned into the</text>
-  <text class="s" x="38" y="522">reasons the student sees, for example:</text>
-  <rect class="box" x="38" y="534" width="424" height="24" rx="12"/><text class="s" x="52" y="550">"Money received from a stranger is being forwarded on (money-mule pattern)"</text>
-  <rect class="box" x="38" y="564" width="424" height="24" rx="12"/><text class="s" x="52" y="580">"Amount is 29.1x your usual payment"  ·  "First payment to this payee"</text>
-
-  <rect class="panel" x="500" y="464" width="460" height="136" rx="18"/>
-  <text class="t" x="518" y="490">Hard rules block regardless of the score</text>
-  <text class="s" x="518" y="508">• account impersonates a registered institution</text>
-  <text class="s" x="518" y="524">• money-mule pass-through (new sender in, straight out)</text>
-  <text class="s" x="518" y="540">• crypto / gift card / e-wallet to a private person</text>
-  <text class="s" x="518" y="556">• tuition to an account not in the verified registry</text>
-  <text class="s" x="518" y="582">Held-out test (synthetic data): ROC-AUC 0.937 · PR-AUC 0.879</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" width="1200" height="520" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
+<style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=block');</style>
+<defs>
+  <marker id="ek" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#111111"/></marker>
+  <marker id="sk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#111111"/></marker>
+  <marker id="eg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#8A8A8A"/></marker>
+  <marker id="sg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#8A8A8A"/></marker>
+</defs>
+<rect width="1200" height="520" fill="#FFFFFF"/>
+<rect x="24" y="218" width="120" height="60" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="84.0" y="253.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Payment</text>
+<rect x="184" y="210" width="150" height="76" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="259.0" y="245.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">20 features</text>
+<text x="259.0" y="264.0" font-size="12" font-weight="400" fill="#6B6B6B" text-anchor="middle" font-family="inherit">per payment</text>
+<rect x="384" y="86" width="190" height="44" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="479.0" y="113.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Logistic regression</text>
+<rect x="384" y="142" width="190" height="44" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="479.0" y="169.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Random forest</text>
+<rect x="384" y="198" width="190" height="44" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="479.0" y="225.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">XGBoost</text>
+<rect x="384" y="254" width="190" height="44" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="479.0" y="281.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Gradient boosting</text>
+<rect x="384" y="310" width="190" height="44" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="479.0" y="337.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Neural network</text>
+<rect x="384" y="366" width="190" height="44" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="479.0" y="393.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Autoencoder</text>
+<path d="M144,248 L184,248" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<line x1="359" y1="108" x2="359" y2="388" stroke="#111111" stroke-width="1.5"/>
+<line x1="334" y1="248" x2="359" y2="248" stroke="#111111" stroke-width="1.5"/>
+<path d="M359,108 L384,108" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<path d="M359,164 L384,164" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<path d="M359,220 L384,220" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<path d="M359,276 L384,276" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<path d="M359,332 L384,332" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<path d="M359,388 L384,388" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<line x1="574" y1="108" x2="599" y2="108" stroke="#111111" stroke-width="1.5"/>
+<line x1="574" y1="164" x2="599" y2="164" stroke="#111111" stroke-width="1.5"/>
+<line x1="574" y1="220" x2="599" y2="220" stroke="#111111" stroke-width="1.5"/>
+<line x1="574" y1="276" x2="599" y2="276" stroke="#111111" stroke-width="1.5"/>
+<line x1="574" y1="332" x2="599" y2="332" stroke="#111111" stroke-width="1.5"/>
+<line x1="574" y1="388" x2="599" y2="388" stroke="#111111" stroke-width="1.5"/>
+<line x1="599" y1="108" x2="599" y2="388" stroke="#111111" stroke-width="1.5"/>
+<rect x="624" y="205" width="150" height="86" rx="14" fill="#111111" stroke="#111111" stroke-width="1.2"/>
+<text x="699.0" y="245.0" font-size="15" font-weight="600" fill="#FFFFFF" text-anchor="middle" font-family="inherit">Meta-learner</text>
+<text x="699.0" y="264.0" font-size="12" font-weight="400" fill="#BDBDBD" text-anchor="middle" font-family="inherit">stacking</text>
+<path d="M599,248 L624,248" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<line x1="774" y1="248" x2="799" y2="248" stroke="#111111" stroke-width="1.5"/>
+<line x1="799" y1="163" x2="799" y2="333" stroke="#111111" stroke-width="1.5"/>
+<rect x="824" y="140" width="150" height="46" rx="14" fill="#E7F4EC" stroke="#B9DCC7" stroke-width="1.2"/>
+<text x="899.0" y="160.0" font-size="15" font-weight="600" fill="#1E6B41" text-anchor="middle" font-family="inherit">Low</text>
+<text x="899.0" y="179.0" font-size="12" font-weight="400" fill="#1E6B41" text-anchor="middle" font-family="inherit">&lt; 0.10</text>
+<path d="M799,163 L824,163" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="824" y="225" width="150" height="46" rx="14" fill="#FFF3D6" stroke="#EBD39A" stroke-width="1.2"/>
+<text x="899.0" y="245.0" font-size="15" font-weight="600" fill="#8A5300" text-anchor="middle" font-family="inherit">Medium</text>
+<text x="899.0" y="264.0" font-size="12" font-weight="400" fill="#8A5300" text-anchor="middle" font-family="inherit">0.10 – 0.70</text>
+<path d="M799,248 L824,248" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="824" y="310" width="150" height="46" rx="14" fill="#FDECEB" stroke="#F0C3BF" stroke-width="1.2"/>
+<text x="899.0" y="330.0" font-size="15" font-weight="600" fill="#A8231A" text-anchor="middle" font-family="inherit">High</text>
+<text x="899.0" y="349.0" font-size="12" font-weight="400" fill="#A8231A" text-anchor="middle" font-family="inherit">≥ 0.70</text>
+<path d="M799,333 L824,333" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="1024" y="170" width="152" height="56" rx="14" fill="#111111" stroke="#111111" stroke-width="1.2"/>
+<text x="1100.0" y="195.0" font-size="15" font-weight="600" fill="#FFFFFF" text-anchor="middle" font-family="inherit">T2 · Verify</text>
+<text x="1100.0" y="214.0" font-size="12" font-weight="400" fill="#BDBDBD" text-anchor="middle" font-family="inherit">fingerprint needed</text>
+<rect x="1024" y="305" width="152" height="56" rx="14" fill="#FDECEB" stroke="#F0C3BF" stroke-width="1.2"/>
+<text x="1100.0" y="330.0" font-size="15" font-weight="600" fill="#A8231A" text-anchor="middle" font-family="inherit">T3 · Block</text>
+<text x="1100.0" y="349.0" font-size="12" font-weight="400" fill="#A8231A" text-anchor="middle" font-family="inherit">refused</text>
+<path d="M974,163 L991.0,163.0 Q999,163 999.0,171.0 L999.0,190.0 Q999,198 1007.0,198.0 L1024,198" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<path d="M974,248 L991.0,248.0 Q999,248 999.0,240.0 L999.0,206.0 Q999,198 1007.0,198.0 L1024,198" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<path d="M974,333 L1024,333" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="624" y="420" width="150" height="56" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="699.0" y="445.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Hard rules</text>
+<text x="699.0" y="464.0" font-size="12" font-weight="400" fill="#6B6B6B" text-anchor="middle" font-family="inherit">mule · fake account</text>
+<path d="M774,448 L1092.0,448.0 Q1100,448 1100.0,440.0 L1100,361" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="891.8" y="424" width="96.4" height="22" rx="11" fill="#FFFFFF"/>
+<text x="940" y="440" font-size="12" font-weight="400" fill="#444444" text-anchor="middle" font-family="inherit">always block</text>
 </svg>

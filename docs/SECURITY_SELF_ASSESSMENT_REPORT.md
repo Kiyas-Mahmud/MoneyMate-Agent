@@ -73,6 +73,14 @@ Every action of the agent belongs to one of three permission levels (tiers). The
 the code (`backend/app/services/policy.py`), **not by the AI**. The AI can only suggest an action; the rules decide
 what is allowed.
 
+![Permission tiers](diagrams/permission-tiers.png)
+
+*Figure 1. How an agent action gets its tier.* The first question is whether the action moves money. If it does
+not (for example, checking a balance), it is T0 and runs at once. If it does, the block rules and the fraud model
+are checked; a payment that breaks a rule or has a high risk score is T3 and is refused. Every other payment is
+T2: it is prepared and waits for the student. It is paid only if the student confirms with their fingerprint;
+if the student declines or the time runs out, nothing is paid.
+
 | Tier | Name | When it applies | What happens |
 |---|---|---|---|
 | **T0** | Read | Checking balances, comparing providers, checking a payee, checking a message for scams, reminders, receipts, setting up a monthly payment plan | Runs at once. No money moves. |
@@ -114,6 +122,14 @@ same payment code. So the same rules apply no matter who starts a payment.
 ## 4. How a payment is confirmed
 
 The confirmation step is what turns the agent's plan into a real payment, so we made it strong.
+
+![Fingerprint verification sequence](diagrams/verification-sequence.png)
+
+*Figure 2. The messages between the student, the phone and the server when a payment is confirmed.* The numbers
+show the order. The server prepares the payment with a one-time code (1) and asks the phone to confirm (2). The
+student taps Verify (3), the app fetches the code (4–5) and asks the phone's secure hardware to sign it (6). The
+phone asks for the fingerprint (7–8) and returns the signature (9). The app sends it to the server (10), which
+checks it and completes the payment (11), then returns the receipt (12). The main steps are:
 
 1. **Setting up the phone.** When the student sets up the app, the phone creates a pair of keys in its secure
    hardware (the Android Keystore). The private key can only be used after a fingerprint or face check, and it
@@ -157,6 +173,13 @@ accounts. A name that looks official with an account that does not match is flag
 **Fraud model.** Each payment gets a risk score from a model that combines six machine-learning methods. It looks at
 20 signs, such as how unusual the amount is, whether the payee is new and whether money just arrived from a
 stranger. It also explains its score in plain words (for example, "First payment to this payee").
+
+![Security layers](diagrams/security-layers.png)
+
+*Figure 3. The seven checks every payment passes, in order.* Steps 1 to 4 (sign-in, payee check, fraud model
+and policy) happen before the student is asked, so a dangerous payment is never offered for approval. Step 5
+is the student's fingerprint. Steps 6 and 7 (settlement with a balance re-check, and the audit log) happen only
+after the student approves.
 
 **Tamper-evident audit log.** Every action is saved as a record. Each record's fingerprint (a SHA-256 hash)
 includes the fingerprint of the record before it, so changing any old record breaks the chain. Once a day, the

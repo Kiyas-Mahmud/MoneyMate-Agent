@@ -173,6 +173,20 @@ reach a laptop on the same network; release builds do not allow plain HTTP.
 A payment request must pass every layer. Each layer works on its own, so a mistake or failure in one does
 not open the way to the money.
 
+1. **Sign-in:** bcrypt-hashed passwords and a 2-hour JWT; every query is limited to the signed-in student.
+2. **Payee check:** the payee is compared with the verified university registry; an official-looking name
+   with a different account is flagged as impersonation.
+3. **Fraud model:** 20 behavioural features and six stacked models give a risk score, with plain-language
+   reasons.
+4. **Policy:** fixed rules choose the tier: block (T3) or prepare and wait for the student (T2).
+5. **Fingerprint:** only a signature from the student's phone key, unlocked by a strong biometric, completes
+   the payment.
+6. **Settlement:** the balance is checked again, the money moves in the sandbox ledger and an HMAC-coded
+   receipt is issued.
+7. **Audit log:** every step is a record in a SHA-256 hash chain, anchored daily on Ethereum Sepolia.
+
+Layers 1–4 run before the student is asked, so a dangerous payment is never offered for approval.
+
 ### 2.4 Permission tiers
 
 | Tier | What happens | Applies to |
@@ -187,6 +201,14 @@ rule "every payment needs the student" has no exceptions.
 ### 2.5 Device-bound payment verification
 
 ![Verification sequence](diagrams/verification-sequence.svg)
+
+**Steps in the diagram.** (1) The backend prepares the payment and stores a random one-time nonce. (2) It sends
+the phone a verify request ("Please complete verification to complete the payment"). (3) The student opens it
+and taps Verify. (4–5) The app fetches the challenge text, `moneymate-verify:{action_id}:{nonce}`. (6) The app
+asks the Android Keystore to sign it. (7–8) The Keystore shows the system fingerprint prompt and the student
+touches the sensor. (9) The Keystore returns an ECDSA P-256 signature; the private key never leaves the secure
+hardware. (10) The app submits the signature. (11) The backend checks it and settles the payment. (12) The app
+receives the receipt. The details of each step follow.
 
 **Enrolment.** On first use, the app creates a P-256 (ECDSA) key pair in the Android Keystore (StrongBox
 hardware when the phone has it, otherwise the TEE). The key is created with:
@@ -268,6 +290,11 @@ exists for API demos only; the server refuses to start with it in production.
 ### 2.10 Blockchain anchoring of the audit log
 
 ![Audit hash chain and blockchain anchoring](diagrams/audit-anchoring.svg)
+
+The top row shows the last records of the hash chain in the database (records 202–204 of the evidence run)
+and the daily Sepolia transaction that stores the latest record's id and hash. The bottom row shows the two
+checks: **Check 1** recomputes every hash in the database, and **Check 2** fetches each anchor transaction from
+the blockchain and compares it with the log. The log counts as intact only when both checks match.
 
 The audit log's hash chain shows any edit **unless** someone rewrites the whole chain consistently, which a
 database administrator could do. To close that gap, MoneyMate writes the latest entry's hash to a public

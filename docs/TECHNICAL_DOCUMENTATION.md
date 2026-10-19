@@ -252,6 +252,13 @@ own wallets (`kind = "FX"`) are not counted.
 
 ![Hybrid fraud model](diagrams/hybrid-risk-model.png)
 
+Each payment is turned into 20 behavioural features (amount compared with the student's history, payee,
+context and recent behaviour). Six base models score the features independently, and a logistic-regression
+meta-learner combines their scores into one risk score between 0 and 1. A score below 0.10 is LOW and from
+0.10 to below 0.70 is MEDIUM; both lead to T2 (prepared, waits for the fingerprint), MEDIUM with a warning. A score
+of 0.70 or more is HIGH and is blocked (T3). Hard rules (impersonated account, money-mule pattern, crypto or
+gift card to a person, tuition to an unverified account) block a payment whatever the score.
+
 Training code: `backend/ml/train_hybrid.py`; shared scorer: `backend/app/services/risk/hybrid.py`.
 
 | Base learner | Implementation | Role |

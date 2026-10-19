@@ -1,104 +1,57 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 400" width="980" height="400" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
-  <style>
-    .box { fill: #ffffff; stroke: #cfcfcf; }
-    .key { fill: #111111; }
-    .panel { fill: #f4f4f4; stroke: #e0e0e0; }
-    .n { font-size: 10px; font-weight: 600; fill: #8a8a8a; }
-    .nw { font-size: 10px; font-weight: 600; fill: #9a9a9a; }
-    .t { font-size: 13px; font-weight: 600; fill: #111; }
-    .tw { font-size: 13px; font-weight: 600; fill: #fff; }
-    .s { font-size: 10.5px; fill: #5c5c5c; }
-    .sw { font-size: 10.5px; fill: #d0d0d0; }
-    .h { font-size: 13px; font-weight: 600; fill: #111; }
-    .li { font-size: 11px; fill: #222; }
-    .x { font-size: 11px; font-weight: 600; fill: #a8231a; }
-    .ok { font-size: 11px; font-weight: 600; fill: #1e6b41; }
-    .arrow { stroke: #111; stroke-width: 1.3; fill: none; marker-end: url(#a); }
-  </style>
-  <defs>
-    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111"/></marker>
-  </defs>
-  <rect width="980" height="400" fill="#fff"/>
-  <text class="h" x="20" y="28">Every payment request passes every layer, in this order</text>
-
-  <!-- 7 stages: w=126, gap 10, start 19 -->
-  <rect class="box" x="19" y="44" width="126" height="138" rx="16"/>
-  <text class="n" x="33" y="66">1</text>
-  <text class="t" x="33" y="84">Sign-in</text>
-  <text class="s" x="33" y="104">bcrypt passwords</text>
-  <text class="s" x="33" y="119">JWT valid 2 h</text>
-  <text class="s" x="33" y="134">every query scoped</text>
-  <text class="s" x="33" y="149">to the student</text>
-
-  <rect class="box" x="155" y="44" width="126" height="138" rx="16"/>
-  <text class="n" x="169" y="66">2</text>
-  <text class="t" x="169" y="84">Payee check</text>
-  <text class="s" x="169" y="104">verified university</text>
-  <text class="s" x="169" y="119">registry</text>
-  <text class="s" x="169" y="134">look-alike accounts</text>
-  <text class="s" x="169" y="149">flagged</text>
-
-  <rect class="box" x="291" y="44" width="126" height="138" rx="16"/>
-  <text class="n" x="305" y="66">3</text>
-  <text class="t" x="305" y="84">Fraud model</text>
-  <text class="s" x="305" y="104">20 behaviour</text>
-  <text class="s" x="305" y="119">features</text>
-  <text class="s" x="305" y="134">6 models stacked</text>
-  <text class="s" x="305" y="149">reasons explained</text>
-
-  <rect class="box" x="427" y="44" width="126" height="138" rx="16"/>
-  <text class="n" x="441" y="66">4</text>
-  <text class="t" x="441" y="84">Policy</text>
-  <text class="s" x="441" y="104">blocks high risk,</text>
-  <text class="s" x="441" y="119">money mules, fake</text>
-  <text class="s" x="441" y="134">tuition, crypto to</text>
-  <text class="s" x="441" y="149">strangers</text>
-
-  <rect class="key" x="563" y="44" width="126" height="138" rx="16"/>
-  <text class="nw" x="577" y="66">5</text>
-  <text class="tw" x="577" y="84">Fingerprint</text>
-  <text class="sw" x="577" y="104">Keystore key signs</text>
-  <text class="sw" x="577" y="119">a one-time challenge</text>
-  <text class="sw" x="577" y="134">expires in 15 min</text>
-  <text class="sw" x="577" y="149">no replay</text>
-
-  <rect class="box" x="699" y="44" width="126" height="138" rx="16"/>
-  <text class="n" x="713" y="66">6</text>
-  <text class="t" x="713" y="84">Settlement</text>
-  <text class="s" x="713" y="104">balance re-checked</text>
-  <text class="s" x="713" y="119">receipt with an</text>
-  <text class="s" x="713" y="134">HMAC code anyone</text>
-  <text class="s" x="713" y="149">can check</text>
-
-  <rect class="box" x="835" y="44" width="126" height="138" rx="16"/>
-  <text class="n" x="849" y="66">7</text>
-  <text class="t" x="849" y="84">Audit</text>
-  <text class="s" x="849" y="104">SHA-256 hash chain</text>
-  <text class="s" x="849" y="119">head anchored daily</text>
-  <text class="s" x="849" y="134">on Ethereum Sepolia</text>
-  <text class="s" x="849" y="149">any rewrite is caught</text>
-
-  <path class="arrow" d="M145,113 L154,113"/>
-  <path class="arrow" d="M281,113 L290,113"/>
-  <path class="arrow" d="M417,113 L426,113"/>
-  <path class="arrow" d="M553,113 L562,113"/>
-  <path class="arrow" d="M689,113 L698,113"/>
-  <path class="arrow" d="M825,113 L834,113"/>
-
-  <!-- Panels -->
-  <rect class="panel" x="19" y="206" width="466" height="176" rx="18"/>
-  <text class="h" x="39" y="234">What the AI agent cannot do</text>
-  <text class="x" x="39" y="262">✕</text><text class="li" x="58" y="262">Approve a payment: only the student's phone key can sign.</text>
-  <text class="x" x="39" y="288">✕</text><text class="li" x="58" y="288">Lower a risk tier: the policy never reads the model's text.</text>
-  <text class="x" x="39" y="314">✕</text><text class="li" x="58" y="314">Skip a check: it uses the same pipeline as the app's screens.</text>
-  <text class="x" x="39" y="340">✕</text><text class="li" x="58" y="340">Obey a pasted message: it is treated as data, checked by rules.</text>
-  <text class="x" x="39" y="366">✕</text><text class="li" x="58" y="366">Clear a scam warning: the AI second opinion can only raise it.</text>
-
-  <rect class="panel" x="495" y="206" width="466" height="176" rx="18"/>
-  <text class="h" x="515" y="234">How the student's data is protected</text>
-  <text class="ok" x="515" y="262">✓</text><text class="li" x="534" y="262">Private key stays in the phone's secure hardware.</text>
-  <text class="ok" x="515" y="288">✓</text><text class="li" x="534" y="288">Screenshots are read on the phone, never uploaded.</text>
-  <text class="ok" x="515" y="314">✓</text><text class="li" x="534" y="314">Account numbers shown as the last 4 digits only.</text>
-  <text class="ok" x="515" y="340">✓</text><text class="li" x="534" y="340">Login token in Android encrypted storage; no secrets in the app.</text>
-  <text class="ok" x="515" y="366">✓</text><text class="li" x="534" y="366">Gemini and push are optional and off unless configured.</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 250" width="1200" height="250" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
+<style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=block');</style>
+<defs>
+  <marker id="ek" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#111111"/></marker>
+  <marker id="sk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#111111"/></marker>
+  <marker id="eg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#8A8A8A"/></marker>
+  <marker id="sg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#8A8A8A"/></marker>
+</defs>
+<rect width="1200" height="250" fill="#FFFFFF"/>
+<rect x="31" y="46" width="146" height="92" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="104.0" y="89.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Sign-in</text>
+<text x="104.0" y="108.0" font-size="12" font-weight="400" fill="#6B6B6B" text-anchor="middle" font-family="inherit">password + JWT</text>
+<circle cx="104.0" cy="46" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="104.0" y="50" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">1</text>
+<path d="M177,92 L197,92" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="197" y="46" width="146" height="92" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="270.0" y="89.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Payee check</text>
+<text x="270.0" y="108.0" font-size="12" font-weight="400" fill="#6B6B6B" text-anchor="middle" font-family="inherit">registry</text>
+<circle cx="270.0" cy="46" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="270.0" y="50" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">2</text>
+<path d="M343,92 L363,92" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="363" y="46" width="146" height="92" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="436.0" y="89.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Fraud model</text>
+<text x="436.0" y="108.0" font-size="12" font-weight="400" fill="#6B6B6B" text-anchor="middle" font-family="inherit">risk score</text>
+<circle cx="436.0" cy="46" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="436.0" y="50" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">3</text>
+<path d="M509,92 L529,92" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="529" y="46" width="146" height="92" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="602.0" y="89.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Policy</text>
+<text x="602.0" y="108.0" font-size="12" font-weight="400" fill="#6B6B6B" text-anchor="middle" font-family="inherit">block or verify</text>
+<circle cx="602.0" cy="46" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="602.0" y="50" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">4</text>
+<path d="M675,92 L695,92" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="695" y="46" width="146" height="92" rx="14" fill="#111111" stroke="#111111" stroke-width="1.2"/>
+<text x="768.0" y="89.0" font-size="15" font-weight="600" fill="#FFFFFF" text-anchor="middle" font-family="inherit">Fingerprint</text>
+<text x="768.0" y="108.0" font-size="12" font-weight="400" fill="#BDBDBD" text-anchor="middle" font-family="inherit">student only</text>
+<circle cx="768.0" cy="46" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="768.0" y="50" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">5</text>
+<path d="M841,92 L861,92" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="861" y="46" width="146" height="92" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="934.0" y="89.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Settlement</text>
+<text x="934.0" y="108.0" font-size="12" font-weight="400" fill="#6B6B6B" text-anchor="middle" font-family="inherit">balance re-check</text>
+<circle cx="934.0" cy="46" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="934.0" y="50" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">6</text>
+<path d="M1007,92 L1027,92" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<rect x="1027" y="46" width="146" height="92" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="1100.0" y="89.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Audit log</text>
+<text x="1100.0" y="108.0" font-size="12" font-weight="400" fill="#6B6B6B" text-anchor="middle" font-family="inherit">hash + anchor</text>
+<circle cx="1100.0" cy="46" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="1100.0" y="50" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">7</text>
+<path d="M31,156 L31,164 L675,164 L675,156" fill="none" stroke="#BDBDBD" stroke-width="1.2"/>
+<text x="353.0" y="188" font-size="13" font-weight="600" fill="#6B6B6B" text-anchor="middle" font-family="inherit">Before the student is asked</text>
+<path d="M695,156 L695,164 L841,164 L841,156" fill="none" stroke="#BDBDBD" stroke-width="1.2"/>
+<text x="768.0" y="188" font-size="13" font-weight="600" fill="#6B6B6B" text-anchor="middle" font-family="inherit">Student decides</text>
+<path d="M861,156 L861,164 L1173,164 L1173,156" fill="none" stroke="#BDBDBD" stroke-width="1.2"/>
+<text x="1017.0" y="188" font-size="13" font-weight="600" fill="#6B6B6B" text-anchor="middle" font-family="inherit">After approval</text>
 </svg>

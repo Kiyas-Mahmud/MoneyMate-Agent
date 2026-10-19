@@ -1,92 +1,72 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 560" width="980" height="560" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
-  <style>
-    .head { fill: #111; }
-    .headl { fill: #f4f4f4; stroke: #d9d9d9; }
-    .th { font-size: 13px; font-weight: 600; fill: #fff; }
-    .thd { font-size: 13px; font-weight: 600; fill: #111; }
-    .life { stroke: #c8c8c8; stroke-width: 1.2; stroke-dasharray: 4 4; }
-    .m { font-size: 11px; fill: #111; }
-    .ms { font-size: 10.5px; fill: #5c5c5c; }
-    .num { font-size: 10px; font-weight: 600; fill: #fff; }
-    .arrow { stroke: #111; stroke-width: 1.3; fill: none; marker-end: url(#a); }
-    .ret { stroke: #111; stroke-width: 1.3; fill: none; stroke-dasharray: 5 3; marker-end: url(#a); }
-    .note { fill: #ffffff; stroke: #cfcfcf; }
-    .check { font-size: 10.5px; fill: #1e6b41; }
-  </style>
-  <defs>
-    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111"/></marker>
-  </defs>
-  <rect width="980" height="560" fill="#fff"/>
-
-  <!-- Lanes: student 90, app 330, keystore 560, backend 820 -->
-  <rect class="headl" x="20" y="20" width="140" height="40" rx="20"/>
-  <text class="thd" x="90" y="45" text-anchor="middle">Student</text>
-  <rect class="head" x="250" y="20" width="160" height="40" rx="20"/>
-  <text class="th" x="330" y="45" text-anchor="middle">MoneyMate app</text>
-  <rect class="head" x="470" y="20" width="180" height="40" rx="20"/>
-  <text class="th" x="560" y="45" text-anchor="middle">Android Keystore</text>
-  <rect class="head" x="730" y="20" width="180" height="40" rx="20"/>
-  <text class="th" x="820" y="45" text-anchor="middle">Backend</text>
-
-  <line class="life" x1="90" y1="60" x2="90" y2="545"/>
-  <line class="life" x1="330" y1="60" x2="330" y2="545"/>
-  <line class="life" x1="560" y1="60" x2="560" y2="545"/>
-  <line class="life" x1="820" y1="60" x2="820" y2="545"/>
-
-  <!-- 1 -->
-  <circle cx="820" cy="88" r="9" fill="#111"/><text class="num" x="820" y="92" text-anchor="middle">1</text>
-  <text class="m" x="836" y="86">Payment prepared:</text>
-  <text class="ms" x="836" y="100">random nonce stored,</text>
-  <text class="ms" x="836" y="113">expiry set, audit entry</text>
-
-  <!-- 2 -->
-  <path class="ret" d="M818,132 L332,132"/>
-  <circle cx="575" cy="132" r="9" fill="#111"/><text class="num" x="575" y="136" text-anchor="middle">2</text>
-  <text class="m" x="595" y="126">notification "Verify to complete your payment"</text>
-  <path class="arrow" d="M328,152 L92,152"/>
-  <text class="ms" x="210" y="146" text-anchor="middle">opens the verify sheet</text>
-
-  <!-- 3 -->
-  <path class="arrow" d="M332,186 L818,186"/>
-  <circle cx="575" cy="186" r="9" fill="#111"/><text class="num" x="575" y="190" text-anchor="middle">3</text>
-  <text class="m" x="595" y="180">GET /agent/actions/{id}/challenge</text>
-  <path class="ret" d="M818,216 L332,216"/>
-  <text class="m" x="595" y="210">"moneymate-verify:{id}:{nonce}"</text>
-
-  <!-- 4 -->
-  <path class="arrow" d="M332,250 L558,250"/>
-  <circle cx="445" cy="250" r="9" fill="#111"/><text class="num" x="445" y="254" text-anchor="middle">4</text>
-  <text class="m" x="445" y="243" text-anchor="middle" dx="0" dy="-8">sign(challenge)</text>
-
-  <!-- 5 -->
-  <path class="arrow" d="M558,284 L92,284"/>
-  <circle cx="330" cy="284" r="9" fill="#111"/><text class="num" x="330" y="288" text-anchor="middle">5</text>
-  <text class="m" x="210" y="277" text-anchor="middle">BiometricPrompt: "Verify payment"</text>
-  <path class="arrow" d="M92,316 L558,316"/>
-  <text class="m" x="210" y="310" text-anchor="middle">touches the fingerprint sensor</text>
-
-  <!-- 6 -->
-  <path class="ret" d="M558,350 L332,350"/>
-  <circle cx="445" cy="350" r="9" fill="#111"/><text class="num" x="445" y="354" text-anchor="middle">6</text>
-  <text class="m" x="445" y="335" text-anchor="middle">ECDSA P-256 signature</text>
-
-  <!-- 7 -->
-  <path class="arrow" d="M332,384 L818,384"/>
-  <circle cx="575" cy="384" r="9" fill="#111"/><text class="num" x="575" y="388" text-anchor="middle">7</text>
-  <text class="m" x="595" y="378">POST /agent/actions/{id}/verify {device_id, signature}</text>
-
-  <!-- 8 checks -->
-  <rect class="note" x="660" y="402" width="300" height="104" rx="14"/>
-  <circle cx="676" cy="420" r="9" fill="#111"/><text class="num" x="676" y="424" text-anchor="middle">8</text>
-  <text class="m" x="692" y="424">Backend checks, then settles</text>
-  <text class="check" x="676" y="444">✓ action belongs to this student, still open</text>
-  <text class="check" x="676" y="459">✓ not expired · nonce unused (no replay)</text>
-  <text class="check" x="676" y="474">✓ phone registered to the same student</text>
-  <text class="check" x="676" y="489">✓ signature matches the stored public key</text>
-
-  <!-- 9 -->
-  <path class="ret" d="M818,526 L332,526"/>
-  <circle cx="575" cy="526" r="9" fill="#111"/><text class="num" x="575" y="530" text-anchor="middle">9</text>
-  <text class="m" x="595" y="520">VERIFIED · receipt with HMAC code</text>
-  <text class="ms" x="350" y="546">Any failed check: HTTP 403, nothing moves.</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 650" width="1200" height="650" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
+<style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=block');</style>
+<defs>
+  <marker id="ek" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#111111"/></marker>
+  <marker id="sk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#111111"/></marker>
+  <marker id="eg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#8A8A8A"/></marker>
+  <marker id="sg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L10,5 L0,9.5 z" fill="#8A8A8A"/></marker>
+</defs>
+<rect width="1200" height="650" fill="#FFFFFF"/>
+<rect x="290" y="18" width="540" height="90" rx="22" fill="#F4F4F4"/>
+<text x="306" y="40" font-size="11.5" font-weight="600" fill="#8A8A8A" text-anchor="start" font-family="inherit" letter-spacing="1.1">STUDENT'S PHONE</text>
+<rect x="35" y="50" width="190" height="46" rx="14" fill="#F4F4F4" stroke="#F4F4F4" stroke-width="1.2"/>
+<text x="130.0" y="78.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Student</text>
+<line x1="130" y1="96" x2="130" y2="620" stroke="#BDBDBD" stroke-width="1.2" stroke-dasharray="5 5"/>
+<rect x="325" y="50" width="190" height="46" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="420.0" y="78.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">Android Keystore</text>
+<line x1="420" y1="96" x2="420" y2="620" stroke="#BDBDBD" stroke-width="1.2" stroke-dasharray="5 5"/>
+<rect x="605" y="50" width="190" height="46" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="700.0" y="78.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">MoneyMate app</text>
+<line x1="700" y1="96" x2="700" y2="620" stroke="#BDBDBD" stroke-width="1.2" stroke-dasharray="5 5"/>
+<rect x="945" y="50" width="190" height="46" rx="14" fill="#111111" stroke="#111111" stroke-width="1.2"/>
+<text x="1040.0" y="78.0" font-size="15" font-weight="600" fill="#FFFFFF" text-anchor="middle" font-family="inherit">Backend</text>
+<line x1="1040" y1="96" x2="1040" y2="620" stroke="#BDBDBD" stroke-width="1.2" stroke-dasharray="5 5"/>
+<rect x="955" y="120" width="170" height="36" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="1040.0" y="143.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">prepare + nonce</text>
+<circle cx="936" cy="138" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="936" y="142" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">1</text>
+<path d="M1040,192 L700,192" fill="none" stroke="#111111" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#ek)"/>
+<circle cx="1024" cy="177" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="1024" y="181" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">2</text>
+<text x="870.0" y="183" font-size="12.5" font-weight="400" fill="#333333" text-anchor="middle" font-family="inherit">verify request</text>
+<path d="M130,236 L700,236" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<circle cx="146" cy="221" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="146" y="225" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">3</text>
+<text x="415.0" y="227" font-size="12.5" font-weight="400" fill="#333333" text-anchor="middle" font-family="inherit">tap Verify</text>
+<path d="M700,280 L1040,280" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<circle cx="716" cy="265" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="716" y="269" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">4</text>
+<text x="870.0" y="271" font-size="12.5" font-weight="400" fill="#333333" text-anchor="middle" font-family="inherit">get challenge</text>
+<path d="M1040,324 L700,324" fill="none" stroke="#111111" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#ek)"/>
+<circle cx="1024" cy="309" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="1024" y="313" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">5</text>
+<text x="870.0" y="315" font-size="12.5" font-weight="400" fill="#333333" text-anchor="middle" font-family="inherit">challenge</text>
+<path d="M700,368 L420,368" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<circle cx="684" cy="353" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="684" y="357" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">6</text>
+<text x="560.0" y="359" font-size="12.5" font-weight="400" fill="#333333" text-anchor="middle" font-family="inherit">sign</text>
+<path d="M420,412 L130,412" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<circle cx="404" cy="397" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="404" y="401" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">7</text>
+<text x="275.0" y="403" font-size="12.5" font-weight="400" fill="#333333" text-anchor="middle" font-family="inherit">fingerprint prompt</text>
+<path d="M130,456 L420,456" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<circle cx="146" cy="441" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="146" y="445" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">8</text>
+<text x="275.0" y="447" font-size="12.5" font-weight="400" fill="#333333" text-anchor="middle" font-family="inherit">fingerprint</text>
+<path d="M420,500 L700,500" fill="none" stroke="#111111" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#ek)"/>
+<circle cx="436" cy="485" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="436" y="489" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">9</text>
+<text x="560.0" y="491" font-size="12.5" font-weight="400" fill="#333333" text-anchor="middle" font-family="inherit">signature</text>
+<path d="M700,544 L1040,544" fill="none" stroke="#111111" stroke-width="1.5" marker-end="url(#ek)"/>
+<circle cx="716" cy="529" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="716" y="533" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">10</text>
+<text x="870.0" y="535" font-size="12.5" font-weight="400" fill="#333333" text-anchor="middle" font-family="inherit">submit signature</text>
+<rect x="955" y="556" width="170" height="36" rx="14" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.2"/>
+<text x="1040.0" y="579.0" font-size="15" font-weight="600" fill="#111111" text-anchor="middle" font-family="inherit">check + settle</text>
+<circle cx="936" cy="574" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="936" y="578" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">11</text>
+<path d="M1040,616 L700,616" fill="none" stroke="#111111" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#ek)"/>
+<circle cx="1024" cy="601" r="12" fill="#111111" stroke="#FFFFFF" stroke-width="2.5"/>
+<text x="1024" y="605" font-size="11.5" font-weight="700" fill="#FFFFFF" text-anchor="middle" font-family="inherit">12</text>
+<text x="870.0" y="607" font-size="12.5" font-weight="400" fill="#333333" text-anchor="middle" font-family="inherit">receipt</text>
 </svg>
